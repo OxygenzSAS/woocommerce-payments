@@ -665,10 +665,48 @@ export default class WCPayAPI {
 	 * @return {Promise} Promise for the request to the server.
 	 */
 	paymentRequestCreateOrder( paymentData ) {
-		return this.request( getPaymentRequestAjaxURL( 'create_order' ), {
+
+		let data = {
 			_wpnonce: getPaymentRequestData( 'nonce' )?.checkout,
 			...paymentData,
-		} );
+		};
+
+		var objects = [];
+		var form = document.querySelector('form[name="checkout"]');
+		let t = Object.values(form).reduce((obj,field) => {
+			if(field['type'] === 'radio' || field['type'] === 'checkbox'){
+				if (field.checked) {
+					obj[field.name] = field.value;
+				} else {
+					obj[field.name] = null;
+					delete(obj[field.name]);
+				}
+			} else {
+				obj[field.name] = field.value;
+			}
+			return obj;
+		}, {});
+
+		t['wcpay-payment-method'] = data['wcpay-payment-method'];
+		t['payment_request_type'] = data['payment_request_type'];
+		t['payment_method'] = data['payment_method'];
+		t['_wpnonce'] = data['_wpnonce'];
+		delete(t['wcpay_selected_upe_payment_type']);
+		delete(t['woocommerce_checkout_place_order']);
+		delete(t['woocommerce-process-checkout-nonce']);
+		delete(t['_wp_http_referer']);
+
+		/*
+		let m = JSON.stringify(t);
+		var div = document.createElement('div');
+		div.className = 'tooltip';
+		div.id = 'op';
+		div.style.cssText = 'position: fixed;  height: 150px ;  overflow: scroll;   z-index: 999;    width: 100%;    top: 70px;    background: white;  border: 1px solid blue; }';
+		div.innerHTML = '<span> test 13 '+m+'</span>';
+		document.body.appendChild(div);
+		 */
+
+		return this.request( getPaymentRequestAjaxURL( 'create_order' ), t );
 	}
 
 	initPlatformCheckout( userEmail, platformCheckoutUserSession ) {

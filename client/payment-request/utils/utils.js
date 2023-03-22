@@ -53,10 +53,10 @@ export const getPaymentRequest = ( {
 		total: getTotalPaymentItem( total ),
 		currency: getPaymentRequestData( 'checkout' )?.currency_code,
 		country,
-		requestPayerName: true,
-		requestPayerEmail: true,
-		requestPayerPhone: getPaymentRequestData( 'checkout' )
-			?.needs_payer_phone,
+		requestPayerName: false,
+		requestPayerEmail: false,
+		requestPayerPhone:  false /* getPaymentRequestData( 'checkout' )
+			?.needs_payer_phone */,
 		requestShipping,
 		displayItems,
 	};

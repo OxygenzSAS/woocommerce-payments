@@ -510,7 +510,7 @@ jQuery( ( $ ) => {
 					wcpayPaymentRequest.startPaymentRequest( {
 						stripe: api.getStripe(),
 						total: cart.total.amount,
-						requestShipping: cart.needs_shipping,
+						requestShipping: false /* cart.needs_shipping */,
 						displayItems: cart.displayItems,
 					} );
 				} );
