@@ -3,6 +3,41 @@
  */
 import { CheckOperators, Checks, Outcomes, Rules } from './constants';
 
+export const getSupportedCountriesType = () => {
+	return window.wcSettings.admin.preloadSettings.general
+		.woocommerce_allowed_countries;
+};
+export const getSettingCountries = () => {
+	const supportedCountriesType = getSupportedCountriesType();
+	switch ( supportedCountriesType ) {
+		case 'all':
+			return [];
+		case 'all_except':
+			return window.wcSettings.admin.preloadSettings.general
+				.woocommerce_all_except_countries;
+		case 'specific':
+			return window.wcSettings.admin.preloadSettings.general
+				.woocommerce_specific_allowed_countries;
+		default:
+			return [];
+	}
+};
+
+const buildFormattedRulePrice = ( price ) => {
+	const convertedPrice = parseInt( parseFloat( price ) * 100, 10 );
+	const defaultCurrency = wcpaySettings.storeCurrency || 'usd';
+
+	return [ convertedPrice, defaultCurrency ].join( '|' );
+};
+
+const readFormattedRulePrice = ( value ) => {
+	if ( ! value ) return '';
+
+	const [ amount ] = value.toString().split( '|' );
+
+	return Number( amount ) / 100;
+};
+
 const getRuleBase = ( setting, block ) => {
 	return {
 		key: setting,
@@ -23,14 +58,19 @@ const buildRuleset = ( ruleKey, shouldBlock, ruleConfiguration = {} ) => {
 			break;
 		case Rules.RULE_INTERNATIONAL_IP_ADDRESS:
 			ruleBase.check = {
-				key: Checks.CHECK_IP_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
-				operator: CheckOperators.OPERATOR_EQUALS,
-				value: false,
+				key: Checks.CHECK_IP_COUNTRY,
+				operator:
+					// Need to use a reversed operator because we'll be matching the failure here.
+					// Example; if a country is in a ban list, block, or if a country isn't in a allow list, block.
+					'specific' === getSupportedCountriesType()
+						? CheckOperators.OPERATOR_NOT_IN
+						: CheckOperators.OPERATOR_IN,
+				value: getSettingCountries().join( '|' ).toLowerCase(),
 			};
 			break;
-		case Rules.RULE_INTERNATIONAL_BILLING_ADDRESS:
+		case Rules.RULE_IP_ADDRESS_MISMATCH:
 			ruleBase.check = {
-				key: Checks.CHECK_BILLING_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
+				key: Checks.CHECK_IP_BILLING_COUNTRY_SAME,
 				operator: CheckOperators.OPERATOR_EQUALS,
 				value: false,
 			};
@@ -91,12 +131,16 @@ const buildRuleset = ( ruleKey, shouldBlock, ruleConfiguration = {} ) => {
 						{
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_LT,
-							value: parseFloat( ruleConfiguration.min_amount ),
+							value: buildFormattedRulePrice(
+								ruleConfiguration.min_amount
+							),
 						},
 						{
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_GT,
-							value: parseFloat( ruleConfiguration.max_amount ),
+							value: buildFormattedRulePrice(
+								ruleConfiguration.max_amount
+							),
 						},
 					],
 				};
@@ -108,12 +152,16 @@ const buildRuleset = ( ruleKey, shouldBlock, ruleConfiguration = {} ) => {
 					? {
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_LT,
-							value: parseFloat( ruleConfiguration.min_amount ),
+							value: buildFormattedRulePrice(
+								ruleConfiguration.min_amount
+							),
 					  }
 					: {
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_GT,
-							value: parseFloat( ruleConfiguration.max_amount ),
+							value: buildFormattedRulePrice(
+								ruleConfiguration.max_amount
+							),
 					  };
 			}
 			break;
@@ -158,7 +206,7 @@ export const readRuleset = ( rulesetConfig ) => {
 			enabled: false,
 			block: false,
 		},
-		[ Rules.RULE_INTERNATIONAL_BILLING_ADDRESS ]: {
+		[ Rules.RULE_IP_ADDRESS_MISMATCH ]: {
 			enabled: false,
 			block: false,
 		},
@@ -191,7 +239,7 @@ export const readRuleset = ( rulesetConfig ) => {
 					block: rule.outcome === Outcomes.BLOCK,
 				};
 				break;
-			case Rules.RULE_INTERNATIONAL_BILLING_ADDRESS:
+			case Rules.RULE_IP_ADDRESS_MISMATCH:
 				parsedUIConfig[ rule.key ] = {
 					enabled: true,
 					block: rule.outcome === Outcomes.BLOCK,
@@ -229,8 +277,8 @@ export const readRuleset = ( rulesetConfig ) => {
 				parsedUIConfig[ rule.key ] = {
 					enabled: true,
 					block: rule.outcome === Outcomes.BLOCK,
-					min_amount: minAmount.value ?? '',
-					max_amount: maxAmount.value ?? '',
+					min_amount: readFormattedRulePrice( minAmount.value ),
+					max_amount: readFormattedRulePrice( maxAmount.value ),
 				};
 				break;
 		}

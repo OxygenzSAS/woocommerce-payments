@@ -2,8 +2,6 @@
 
 export const ProtectionLevel = {
 	BASIC: 'basic',
-	STANDARD: 'standard',
-	HIGH: 'high',
 	ADVANCED: 'advanced',
 };
 
@@ -16,18 +14,15 @@ export const Outcomes = {
 export const Rules = {
 	RULE_ADDRESS_MISMATCH: 'address_mismatch',
 	RULE_INTERNATIONAL_IP_ADDRESS: 'international_ip_address',
-	RULE_INTERNATIONAL_BILLING_ADDRESS: 'international_billing_address',
+	RULE_IP_ADDRESS_MISMATCH: 'ip_address_mismatch',
 	RULE_ORDER_ITEMS_THRESHOLD: 'order_items_threshold',
 	RULE_PURCHASE_PRICE_THRESHOLD: 'purchase_price_threshold',
 };
 
 export const Checks = {
 	CHECK_BILLING_SHIPPING_ADDRESS_SAME: 'billing_shipping_address_same',
-	CHECK_IP_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY:
-		'ip_country_same_with_account_country',
-	CHECK_BILLING_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY:
-		'billing_country_same_with_account_country',
-	CHECK_ORDERS_SINCE_H: 'orders_since_%dh',
+	CHECK_IP_COUNTRY: 'ip_country',
+	CHECK_IP_BILLING_COUNTRY_SAME: 'ip_billing_country_same',
 	CHECK_ITEM_COUNT: 'item_count',
 	CHECK_ORDER_TOTAL: 'order_total',
 };
@@ -41,4 +36,6 @@ export const CheckOperators = {
 	OPERATOR_GT: 'greater_than',
 	OPERATOR_LTE: 'less_or_equal',
 	OPERATOR_LT: 'less_than',
+	OPERATOR_IN: 'in',
+	OPERATOR_NOT_IN: 'not_in',
 };

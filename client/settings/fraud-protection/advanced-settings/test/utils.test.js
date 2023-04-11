@@ -9,7 +9,7 @@ const defaultUIConfig = {
 		block: false,
 		enabled: false,
 	},
-	international_billing_address: {
+	ip_address_mismatch: {
 		block: false,
 		enabled: false,
 	},
@@ -31,6 +31,25 @@ const defaultUIConfig = {
 	},
 };
 describe( 'Ruleset adapter utilities test', () => {
+	beforeEach( () => {
+		global.wcpaySettings = {
+			storeCurrency: 'USD',
+			connect: {
+				country: 'US',
+			},
+			currencyData: {
+				US: {
+					code: 'USD',
+					symbol: '$',
+					symbolPosition: 'left',
+					thousandSeparator: ',',
+					decimalSeparator: '.',
+					precision: 2,
+				},
+			},
+		};
+	} );
+
 	test( 'converts an empty ruleset to default UI config', () => {
 		const ruleset = [];
 		const expected = defaultUIConfig;
@@ -62,17 +81,17 @@ describe( 'Ruleset adapter utilities test', () => {
 	test( 'converts an international billing address ruleset to matching UI config', () => {
 		const ruleset = [
 			{
-				key: Rules.RULE_INTERNATIONAL_BILLING_ADDRESS,
+				key: Rules.RULE_IP_ADDRESS_MISMATCH,
 				outcome: Outcomes.BLOCK,
 				check: {
-					key: Checks.CHECK_BILLING_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
+					key: Checks.CHECK_IP_BILLING_COUNTRY_SAME,
 					operator: CheckOperators.OPERATOR_EQUALS,
 					value: false,
 				},
 			},
 		];
 		const expected = Object.assign( {}, defaultUIConfig, {
-			international_billing_address: {
+			ip_address_mismatch: {
 				block: true,
 				enabled: true,
 			},
@@ -87,9 +106,9 @@ describe( 'Ruleset adapter utilities test', () => {
 				key: Rules.RULE_INTERNATIONAL_IP_ADDRESS,
 				outcome: Outcomes.BLOCK,
 				check: {
-					key: Checks.CHECK_IP_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
-					operator: CheckOperators.OPERATOR_EQUALS,
-					value: false,
+					key: Checks.CHECK_IP_COUNTRY,
+					operator: CheckOperators.OPERATOR_IN,
+					value: 'US|CA',
 				},
 			},
 		];
@@ -147,12 +166,12 @@ describe( 'Ruleset adapter utilities test', () => {
 						{
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_LT,
-							value: 1,
+							value: 100,
 						},
 						{
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_GT,
-							value: 10,
+							value: 1000,
 						},
 					],
 				},
@@ -180,7 +199,7 @@ describe( 'Ruleset adapter utilities test', () => {
 						{
 							key: Checks.CHECK_ORDER_TOTAL,
 							operator: CheckOperators.OPERATOR_LT,
-							value: 1,
+							value: 100,
 						},
 					],
 				},
@@ -221,7 +240,7 @@ describe( 'Ruleset adapter utilities test', () => {
 				check: {
 					key: Checks.CHECK_ORDER_TOTAL,
 					operator: CheckOperators.OPERATOR_LT,
-					value: 1,
+					value: 100,
 				},
 			},
 		];
@@ -267,7 +286,7 @@ describe( 'Ruleset adapter utilities test', () => {
 				check: {
 					key: Checks.CHECK_ORDER_TOTAL,
 					operator: 'exp',
-					value: 1,
+					value: 100,
 				},
 			},
 		];
@@ -289,7 +308,7 @@ describe( 'Ruleset adapter utilities test', () => {
 				check: {
 					key: Checks.CHECK_ORDER_TOTAL,
 					operator: CheckOperators.OPERATOR_LT,
-					value: 1,
+					value: 100,
 				},
 			},
 		];
@@ -312,7 +331,7 @@ describe( 'Ruleset adapter utilities test', () => {
 			[ Rules.RULE_PURCHASE_PRICE_THRESHOLD ]: {
 				enabled: true,
 				block: false,
-				min_amount: 1,
+				min_amount: 0.01,
 				max_amount: '',
 			},
 		} );
@@ -422,21 +441,20 @@ describe( 'Ruleset adapter utilities test', () => {
 		}
 	);
 	test.each( [ true, false ] )(
-		'converts enabled international billing address filter to ruleset, blocking %s',
+		'converts enabled ip address mismatch filter to ruleset, blocking %s',
 		( block ) => {
 			const config = Object.assign( {}, defaultUIConfig, {
-				[ Rules.RULE_INTERNATIONAL_BILLING_ADDRESS ]: {
+				[ Rules.RULE_IP_ADDRESS_MISMATCH ]: {
 					enabled: true,
 					block: block,
 				},
 			} );
 			const expected = [
 				{
-					key: Rules.RULE_INTERNATIONAL_BILLING_ADDRESS,
+					key: Rules.RULE_IP_ADDRESS_MISMATCH,
 					outcome: block ? Outcomes.BLOCK : Outcomes.REVIEW,
 					check: {
-						key:
-							Checks.CHECK_BILLING_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
+						key: Checks.CHECK_IP_BILLING_COUNTRY_SAME,
 						operator: CheckOperators.OPERATOR_EQUALS,
 						value: false,
 					},
@@ -446,9 +464,28 @@ describe( 'Ruleset adapter utilities test', () => {
 			expect( output ).toEqual( expected );
 		}
 	);
-	test.each( [ true, false ] )(
+	test.each( [
+		[ true, 'all', 'in', '' ],
+		[ true, 'all_except', 'in', 'TR|BR' ],
+		[ true, 'specific', 'not_in', 'US|CA' ],
+		[ false, 'all', 'in', '' ],
+	] )(
 		'converts enabled international ip address filter to ruleset, blocking %s',
-		( block ) => {
+		( block, allowType, checkOperator, checkValue ) => {
+			global.wcSettings = {
+				admin: {
+					preloadSettings: {
+						general: {
+							woocommerce_allowed_countries: allowType,
+							woocommerce_specific_allowed_countries: [
+								'US',
+								'CA',
+							],
+							woocommerce_all_except_countries: [ 'TR', 'BR' ],
+						},
+					},
+				},
+			};
 			const config = Object.assign( {}, defaultUIConfig, {
 				[ Rules.RULE_INTERNATIONAL_IP_ADDRESS ]: {
 					enabled: true,
@@ -460,33 +497,9 @@ describe( 'Ruleset adapter utilities test', () => {
 					key: Rules.RULE_INTERNATIONAL_IP_ADDRESS,
 					outcome: block ? Outcomes.BLOCK : Outcomes.REVIEW,
 					check: {
-						key: Checks.CHECK_IP_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
-						operator: CheckOperators.OPERATOR_EQUALS,
-						value: false,
-					},
-				},
-			];
-			const output = writeRuleset( config );
-			expect( output ).toEqual( expected );
-		}
-	);
-	test.each( [ true, false ] )(
-		'converts enabled international ip address filter to ruleset, blocking %s',
-		( block ) => {
-			const config = Object.assign( {}, defaultUIConfig, {
-				[ Rules.RULE_INTERNATIONAL_IP_ADDRESS ]: {
-					enabled: true,
-					block: block,
-				},
-			} );
-			const expected = [
-				{
-					key: Rules.RULE_INTERNATIONAL_IP_ADDRESS,
-					outcome: block ? Outcomes.BLOCK : Outcomes.REVIEW,
-					check: {
-						key: Checks.CHECK_IP_COUNTRY_SAME_WITH_ACCOUNT_COUNTRY,
-						operator: CheckOperators.OPERATOR_EQUALS,
-						value: false,
+						key: Checks.CHECK_IP_COUNTRY,
+						operator: checkOperator,
+						value: checkValue.toLowerCase(),
 					},
 				},
 			];
@@ -588,12 +601,12 @@ describe( 'Ruleset adapter utilities test', () => {
 							{
 								key: Checks.CHECK_ORDER_TOTAL,
 								operator: CheckOperators.OPERATOR_LT,
-								value: minAmount,
+								value: [ minAmount * 100, 'USD' ].join( '|' ),
 							},
 							{
 								key: Checks.CHECK_ORDER_TOTAL,
 								operator: CheckOperators.OPERATOR_GT,
-								value: maxAmount,
+								value: [ maxAmount * 100, 'USD' ].join( '|' ),
 							},
 						],
 					},
@@ -608,7 +621,10 @@ describe( 'Ruleset adapter utilities test', () => {
 							'' !== maxAmount
 								? CheckOperators.OPERATOR_GT
 								: CheckOperators.OPERATOR_LT,
-						value: '' !== maxAmount ? maxAmount : minAmount,
+						value:
+							'' !== maxAmount
+								? [ maxAmount * 100, 'USD' ].join( '|' )
+								: [ minAmount * 100, 'USD' ].join( '|' ),
 					},
 				} );
 			} else {
