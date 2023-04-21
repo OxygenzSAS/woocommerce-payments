@@ -11,6 +11,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Automattic\WooCommerce\Admin\Notes\DataStore;
 use Automattic\WooCommerce\Admin\Notes\Note;
+use WCPay\Core\Server\Request\Get_Account;
+use WCPay\Core\Server\Request\Get_Account_Capital_Link;
+use WCPay\Core\Server\Request\Get_Account_Login_Data;
+use WCPay\Core\Server\Request\Update_Account;
 use WCPay\Exceptions\API_Exception;
 use WCPay\Logger;
 use WCPay\Database_Cache;
@@ -69,6 +73,7 @@ class WC_Payments_Account {
 		add_filter( 'allowed_redirect_hosts', [ $this, 'allowed_redirect_hosts' ] );
 		add_action( 'jetpack_site_registered', [ $this, 'clear_cache' ] );
 		add_action( 'updated_option', [ $this, 'possibly_update_wcpay_account_locale' ], 10, 3 );
+		add_action( 'woocommerce_woocommerce_payments_updated', [ $this, 'clear_cache' ] );
 
 		// Add capital offer redirection.
 		add_action( 'admin_init', [ $this, 'maybe_redirect_to_capital_offer' ] );
@@ -518,10 +523,15 @@ class WC_Payments_Account {
 		$refresh_url = add_query_arg( [ 'wcpay-loan-offer' => '' ], admin_url( 'admin.php' ) );
 
 		try {
-			$capital_link = $this->payments_api_client->get_capital_link( 'capital_financing_offer', $return_url, $refresh_url );
+			$request = Get_Account_Capital_Link::create();
+			$type    = 'capital_financing_offer';
+			$request->set_type( $type );
+			$request->set_return_url( $return_url );
+			$request->set_refresh_url( $refresh_url );
 
+			$capital_link = $request->send( 'wcpay_get_account_capital_link' );
 			$this->redirect_to( $capital_link['url'] );
-		} catch ( API_Exception $e ) {
+		} catch ( Exception $e ) {
 			$error_url = add_query_arg(
 				[ 'wcpay-loan-offer-error' => '1' ],
 				self::get_overview_page_url()
@@ -951,7 +961,12 @@ class WC_Payments_Account {
 		// Clear account transient when generating Stripe dashboard's login link.
 		$this->clear_cache();
 		$redirect_url = $this->get_overview_page_url();
-		$login_data   = $this->payments_api_client->get_login_data( $redirect_url );
+
+		$request = Get_Account_Login_Data::create();
+		$request->set_redirect_url( $redirect_url );
+
+		$response   = $request->send( 'wpcay_get_account_login_data' );
+		$login_data = $response->to_array();
 		wp_safe_redirect( $login_data['url'] );
 		exit;
 	}
@@ -1175,7 +1190,10 @@ class WC_Payments_Account {
 					// below re-create it if the server tells us on-boarding is still disabled.
 					delete_transient( self::ON_BOARDING_DISABLED_TRANSIENT );
 
-					$account = $this->payments_api_client->get_account_data();
+					$request  = Get_Account::create();
+					$response = $request->send( 'wcpay_get_account' );
+					$account  = $response->to_array();
+
 				} catch ( API_Exception $e ) {
 					if ( 'wcpay_account_not_found' === $e->get_error_code() ) {
 						// Special case - detect account not connected and cache it.
@@ -1273,7 +1291,11 @@ class WC_Payments_Account {
 				Logger::info( 'Skip updating account settings. Nothing is changed.' );
 				return;
 			}
-			$updated_account = $this->payments_api_client->update_account( $stripe_account_settings );
+
+			$request         = Update_Account::from_account_settings( $stripe_account_settings );
+			$response        = $request->send( 'wcpay_update_account_settings' );
+			$updated_account = $response->to_array();
+
 			$this->database_cache->add( Database_Cache::ACCOUNT_KEY, $updated_account );
 		} catch ( Exception $e ) {
 			Logger::error( 'Failed to update Stripe account ' . $e );
@@ -1313,7 +1335,11 @@ class WC_Payments_Account {
 				$account_settings = [
 					'locale' => $new_value ? $new_value : 'en_US',
 				];
-				$updated_account  = $this->payments_api_client->update_account( $account_settings );
+
+				$request         = Update_Account::from_account_settings( $account_settings );
+				$response        = $request->send( 'wcpay_update_account_settings' );
+				$updated_account = $response->to_array();
+
 				$this->database_cache->add( Database_Cache::ACCOUNT_KEY, $updated_account );
 			} catch ( Exception $e ) {
 				Logger::error( __( 'Failed to update Account locale. ', 'woocommerce-payments' ) . $e );
