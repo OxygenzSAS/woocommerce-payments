@@ -991,6 +991,8 @@ class UPE_Payment_Gateway extends WC_Payment_Gateway_WCPay {
 		$available_methods[] = Sepa_Payment_Method::PAYMENT_METHOD_STRIPE_ID;
 		$available_methods[] = P24_Payment_Method::PAYMENT_METHOD_STRIPE_ID;
 		$available_methods[] = Link_Payment_Method::PAYMENT_METHOD_STRIPE_ID;
+		$available_methods[] = Affirm_Payment_Method::PAYMENT_METHOD_STRIPE_ID;
+		$available_methods[] = Afterpay_Payment_Method::PAYMENT_METHOD_STRIPE_ID;
 
 		$available_methods = array_values(
 			apply_filters(
@@ -1227,7 +1229,9 @@ class UPE_Payment_Gateway extends WC_Payment_Gateway_WCPay {
 	 * Removes the setup intent created for UPE from WC session.
 	 */
 	public function remove_upe_setup_intent_from_session() {
-		WC()->session->__unset( self::KEY_UPE_SETUP_INTENT );
+		if ( isset( WC()->session ) ) {
+			WC()->session->__unset( self::KEY_UPE_SETUP_INTENT );
+		}
 	}
 
 	/**

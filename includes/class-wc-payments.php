@@ -33,6 +33,8 @@ use WCPay\WooPay_Tracker;
 use WCPay\WooPay\WooPay_Utilities;
 use WCPay\WooPay\WooPay_Order_Status_Sync;
 use WCPay\Payment_Methods\Link_Payment_Method;
+use WCPay\Payment_Methods\Affirm_Payment_Method;
+use WCPay\Payment_Methods\Afterpay_Payment_Method;
 use WCPay\Session_Rate_Limiter;
 use WCPay\Database_Cache;
 use WCPay\WC_Payments_Checkout;
@@ -48,7 +50,7 @@ class WC_Payments {
 	/**
 	 * Main payment gateway controller instance, created in init function.
 	 *
-	 * @var WC_Payment_Gateway_WCPay|UPE_Payment_Gateway
+	 * @var WC_Payment_Gateway_WCPay|UPE_Payment_Gateway|UPE_Split_Payment_Gateway
 	 */
 	private static $card_gateway;
 
@@ -58,6 +60,14 @@ class WC_Payments {
 	 * @var WC_Payment_Gateway_WCPay
 	 */
 	private static $legacy_card_gateway;
+
+	/**
+	 * Copy of either $card_gateway or $legacy_card_gateway,
+	 * depending on which gateway is registered as main CC gateway.
+	 *
+	 * @var WC_Payment_Gateway_WCPay|UPE_Payment_Gateway|UPE_Split_Payment_Gateway
+	 */
+	private static $registered_card_gateway;
 
 	/**
 	 * Instance of WC_Payments_API_Client, created in init function.
@@ -366,6 +376,8 @@ class WC_Payments {
 		include_once __DIR__ . '/payment-methods/class-becs-payment-method.php';
 		include_once __DIR__ . '/payment-methods/class-eps-payment-method.php';
 		include_once __DIR__ . '/payment-methods/class-link-payment-method.php';
+		include_once __DIR__ . '/payment-methods/class-affirm-payment-method.php';
+		include_once __DIR__ . '/payment-methods/class-afterpay-payment-method.php';
 		include_once __DIR__ . '/class-wc-payment-token-wcpay-sepa.php';
 		include_once __DIR__ . '/class-wc-payments-status.php';
 		include_once __DIR__ . '/class-wc-payments-token-service.php';
@@ -462,6 +474,8 @@ class WC_Payments {
 			Becs_Payment_Method::class,
 			Eps_Payment_Method::class,
 			Link_Payment_Method::class,
+			Affirm_Payment_Method::class,
+			Afterpay_Payment_Method::class,
 		];
 		if ( WC_Payments_Features::is_upe_split_enabled() || WC_Payments_Features::is_upe_deferred_intent_enabled() ) {
 			$payment_methods = [];
@@ -656,10 +670,11 @@ class WC_Payments {
 			}
 
 			if ( WC_Payments_Features::is_woopay_enabled() ) {
-				$gateways[] = self::$legacy_card_gateway;
+				self::$registered_card_gateway = self::$legacy_card_gateway;
 			} else {
-				$gateways[] = self::$card_gateway;
+				self::$registered_card_gateway = self::$card_gateway;
 			}
+			$gateways[]       = self::$registered_card_gateway;
 			$all_upe_gateways = [];
 			$reusable_methods = [];
 			foreach ( $payment_methods as $payment_method_id ) {
@@ -683,22 +698,29 @@ class WC_Payments {
 
 			return array_merge( $gateways, $all_upe_gateways );
 		} elseif ( WC_Payments_Features::is_upe_enabled() ) {
-			return array_merge( $gateways, [ self::$card_gateway ] );
+			self::$registered_card_gateway = self::$card_gateway;
 		} else {
-			return array_merge( $gateways, [ self::$legacy_card_gateway ] );
+			self::$registered_card_gateway = self::$legacy_card_gateway;
 		}
+		return array_merge( $gateways, [ self::$registered_card_gateway ] );
+	}
+
+	/**
+	 * Returns main CC gateway registered for WCPay.
+	 *
+	 * @return WC_Payment_Gateway_WCPay|UPE_Payment_Gateway|UPE_Split_Payment_Gateway
+	 */
+	public static function get_registered_card_gateway() {
+		return self::$registered_card_gateway;
 	}
 
 	/**
 	 * Called on Payments setting page.
 	 *
-	 * Remove all WCPay gateways except CC one. Comparison is done against
-	 * $self::legacy_card_gateway because it should be the same instance as
-	 * registered with WooCommerce and class can change depending on
-	 * environment (see `init` method where $card_gateway is set).
+	 * Remove all WCPay gateways except CC one.
 	 */
 	public static function hide_gateways_on_settings_page() {
-		$default_gateway = WC_Payments_Features::is_upe_split_enabled() ? self::$legacy_card_gateway : self::get_gateway();
+		$default_gateway = self::get_registered_card_gateway();
 		foreach ( WC()->payment_gateways->payment_gateways as $index => $payment_gateway ) {
 			if ( $payment_gateway instanceof WC_Payment_Gateway_WCPay && $payment_gateway !== $default_gateway ) {
 				unset( WC()->payment_gateways->payment_gateways[ $index ] );
