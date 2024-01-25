@@ -67,8 +67,11 @@ class WC_Payments_Express_Checkout_Button_Display_Handler {
 
 			add_action( 'woocommerce_after_add_to_cart_form', [ $this, 'display_express_checkout_buttons' ], 1 );
 			add_action( 'woocommerce_proceed_to_checkout', [ $this, 'display_express_checkout_buttons' ], 21 );
-			add_action( 'woocommerce_checkout_before_customer_details', [ $this, 'display_express_checkout_buttons' ], 1 );
-			add_action( 'woocommerce_pay_order_before_payment', [ $this, 'display_express_checkout_buttons' ], 1 );
+
+			// Oxygenz : Deplacement du bouton de paiement
+			add_action( 'woocommerce_review_order_before_payment', [ $this, 'display_express_checkout_buttons' ], 1 );
+			//add_action( 'woocommerce_checkout_before_customer_details', [ $this, 'display_express_checkout_buttons' ], 1 );
+			//add_action( 'woocommerce_pay_order_before_payment', [ $this, 'display_express_checkout_buttons' ], 1 );
 		}
 
 		if ( $this->is_pay_for_order_flow_supported() ) {
