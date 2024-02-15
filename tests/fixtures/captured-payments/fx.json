@@ -1,9 +1,10 @@
 {
   "title": "FX Payment with a decimal currency",
-  "capturedEvent": 
+  "capturedEvent":
     {
       "type": "captured",
       "amount": 2296500,
+      "amount_captured": 2296500,
       "fee": 96453,
       "fee_rates": {
         "percentage": 0.039,
@@ -27,17 +28,16 @@
       },
       "currency": "VND",
       "datetime": 1651215552,
-      "deposit": {
-        "id": "wcpay_estimated_daily_usd_1651795200",
-        "arrival_date": "1651795200"
-      },
+      "deposit": null,
       "transaction_id": "txn_3KtnnI2EFxam75ai06EEZYXQ",
       "transaction_details": {
         "customer_currency": "VND",
         "customer_amount": 2296500,
+        "customer_amount_captured": 2296500,
         "customer_fee": 96453,
         "store_currency": "USD",
         "store_amount": 10004,
+        "store_amount_captured": 10004,
         "store_fee": 420
       }
     },

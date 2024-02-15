@@ -4,6 +4,7 @@
   {
     "type": "captured",
     "amount": 5300,
+    "amount_captured": 5300,
     "fee": 288,
     "fee_rates": {
       "percentage": 0.049,
@@ -34,17 +35,16 @@
     },
     "currency": "EUR",
     "datetime": 1651999249,
-    "deposit": {
-      "id": "wcpay_estimated_weekly_usd_1652659200",
-      "arrival_date": "1652659200"
-    },
+    "deposit": null,
     "transaction_id": "txn_3Kx5fY2HDHuit9Eg0fQ402Ee",
     "transaction_details": {
       "customer_currency": "EUR",
       "customer_amount": 5300,
+      "customer_amount_captured": 5300,
       "customer_fee": 288,
       "store_currency": "USD",
       "store_amount": 5591,
+      "store_amount_captured": 5591,
       "store_fee": 304
     }
   },
