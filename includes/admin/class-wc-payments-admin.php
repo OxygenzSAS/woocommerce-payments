@@ -320,14 +320,12 @@ class WC_Payments_Admin {
 			]
 		);
 
-		// RTL=false for these files as they aren't currently transpiled by webpack.
 		WC_Payments_Utils::enqueue_style(
 			'wcpay-admin-css',
 			plugins_url( 'assets/css/admin.css', WCPAY_PLUGIN_FILE ),
 			[],
 			WC_Payments::get_file_version( 'assets/css/admin.css' ),
 			'all',
-			false
 		);
 
 		$this->add_menu_notification_badge();
@@ -377,7 +375,10 @@ class WC_Payments_Admin {
 			]
 		);
 
-		if ( $this->account->is_account_rejected() ) {
+		// Merchants are unable to see their deposits, transactions, disputes and settings if their account is rejected or under review.
+		// That's expected, because account under review is hard-blocked account that spends in a review pretty short time-frame.
+		// Either merchant gets approved and continues to use payments or they remain suspended and can't use payments.
+		if ( $this->account->is_account_rejected() || $this->account->is_account_under_review() ) {
 			// If the account is rejected, only show the overview page.
 			wc_admin_register_page( $this->admin_child_pages['wc-payments-overview'] );
 			return;
@@ -538,14 +539,12 @@ class WC_Payments_Admin {
 			);
 		}
 
-		// RTL=false for these files as they aren't currently transpiled by webpack.
 		WC_Payments_Utils::enqueue_style(
 			'wcpay-admin-css',
 			plugins_url( 'assets/css/admin.css', WCPAY_PLUGIN_FILE ),
 			[],
 			WC_Payments::get_file_version( 'assets/css/admin.css' ),
 			'all',
-			false
 		);
 
 		$this->add_menu_notification_badge();
@@ -891,7 +890,6 @@ class WC_Payments_Admin {
 			'accountDefaultCurrency'        => $this->account->get_account_default_currency(),
 			'frtDiscoverBannerSettings'     => get_option( 'wcpay_frt_discover_banner_settings', '' ),
 			'storeCurrency'                 => get_option( 'woocommerce_currency' ),
-			'isBnplAffirmAfterpayEnabled'   => WC_Payments_Features::is_bnpl_affirm_afterpay_enabled(),
 			'isWooPayStoreCountryAvailable' => WooPay_Utilities::is_store_country_available(),
 			'woopayLastDisableDate'         => $this->wcpay_gateway->get_option( 'platform_checkout_last_disable_date' ),
 			'isStripeBillingEnabled'        => WC_Payments_Features::is_stripe_billing_enabled(),
@@ -903,6 +901,7 @@ class WC_Payments_Admin {
 				'exportModalDismissed' => get_option( 'wcpay_reporting_export_modal_dismissed', false ),
 			],
 			'locale'                        => WC_Payments_Utils::get_language_data( get_locale() ),
+			'trackingInfo'                  => $this->account->get_tracking_info(),
 		];
 
 		return apply_filters( 'wcpay_js_settings', $this->wcpay_js_settings );

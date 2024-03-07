@@ -358,7 +358,6 @@ class WC_Payments_Utils {
 			'phone'   => $order->get_billing_phone(),
 		];
 
-		$billing_details['address'] = array_filter( $billing_details['address'] );
 		return array_filter( $billing_details );
 	}
 
@@ -1063,5 +1062,14 @@ class WC_Payments_Utils {
 
 		// Return 'en_US' to match the default site language.
 		return 'en_US';
+	}
+
+	/**
+	 * Check if the current page is the cart page.
+	 *
+	 * @return bool True if the current page is the cart page, false otherwise.
+	 */
+	public static function is_cart_page(): bool {
+		return is_cart() || has_block( 'woocommerce/cart' );
 	}
 }
