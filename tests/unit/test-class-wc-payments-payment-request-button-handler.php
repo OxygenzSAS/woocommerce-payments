@@ -7,6 +7,7 @@
 
 use WCPay\Constants\Country_Code;
 use WCPay\Duplicate_Payment_Prevention_Service;
+use WCPay\Duplicates_Detection_Service;
 use WCPay\Payment_Methods\CC_Payment_Method;
 use WCPay\Session_Rate_Limiter;
 
@@ -223,7 +224,8 @@ class WC_Payments_Payment_Request_Button_Handler_Test extends WCPAY_UnitTestCase
 			$mock_order_service,
 			$mock_dpps,
 			$this->createMock( WC_Payments_Localization_Service::class ),
-			$this->createMock( WC_Payments_Fraud_Service::class )
+			$this->createMock( WC_Payments_Fraud_Service::class ),
+			$this->createMock( Duplicates_Detection_Service::class )
 		);
 	}
 
@@ -664,5 +666,41 @@ class WC_Payments_Payment_Request_Button_Handler_Test extends WCPAY_UnitTestCase
 			],
 			$this->pr->get_button_settings()
 		);
+	}
+
+	public function test_filter_gateway_title() {
+		$order = $this->createMock( WC_Order::class );
+		$order->method( 'get_payment_method_title' )->willReturn( 'Apple Pay' );
+
+		global $theorder;
+		$theorder = $order;
+
+		$this->set_is_admin( true );
+		$this->assertEquals( 'Apple Pay', $this->pr->filter_gateway_title( 'Original Title', 'woocommerce_payments' ) );
+
+		$this->set_is_admin( false );
+		$this->assertEquals( 'Original Title', $this->pr->filter_gateway_title( 'Original Title', 'woocommerce_payments' ) );
+
+		$this->set_is_admin( true );
+		$this->assertEquals( 'Original Title', $this->pr->filter_gateway_title( 'Original Title', 'another_gateway' ) );
+	}
+
+	/**
+	 * @param bool $is_admin
+	 */
+	private function set_is_admin( bool $is_admin ) {
+		global $current_screen;
+
+		if ( ! $is_admin ) {
+			$current_screen = null; // phpcs:ignore: WordPress.WP.GlobalVariablesOverride.Prohibited
+			return;
+		}
+
+		// phpcs:ignore: WordPress.WP.GlobalVariablesOverride.Prohibited
+		$current_screen = $this->getMockBuilder( \stdClass::class )
+			->setMethods( [ 'in_admin' ] )
+			->getMock();
+
+		$current_screen->method( 'in_admin' )->willReturn( $is_admin );
 	}
 }
