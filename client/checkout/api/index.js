@@ -8,6 +8,8 @@ import {
 	getPaymentRequestData,
 	getPaymentRequestAjaxURL,
 	buildAjaxURL,
+	getExpressCheckoutAjaxURL,
+	getExpressCheckoutConfig,
 } from 'utils/express-checkout';
 
 /**
@@ -442,6 +444,37 @@ export default class WCPayAPI {
 		 */
 
 		return this.request( getPaymentRequestAjaxURL( 'create_order' ), t );
+	}
+
+	/**
+	 * Submits shipping address to get available shipping options
+	 * from Express Checkout ECE payment method.
+	 *
+	 * @param {Object} shippingAddress Shipping details.
+	 * @return {Promise} Promise for the request to the server.
+	 */
+	expressCheckoutECECalculateShippingOptions( shippingAddress ) {
+		return this.request(
+			getExpressCheckoutAjaxURL( 'get_shipping_options' ),
+			{
+				security: getExpressCheckoutConfig( 'nonce' )?.shipping,
+				is_product_page: getExpressCheckoutConfig( 'is_product_page' ),
+				...shippingAddress,
+			}
+		);
+	}
+
+	/**
+	 * Creates order based on Express Checkout ECE payment method.
+	 *
+	 * @param {Object} paymentData Order data.
+	 * @return {Promise} Promise for the request to the server.
+	 */
+	expressCheckoutECECreateOrder( paymentData ) {
+		return this.request( getExpressCheckoutAjaxURL( 'create_order' ), {
+			_wpnonce: getExpressCheckoutConfig( 'nonce' )?.checkout,
+			...paymentData,
+		} );
 	}
 
 	initWooPay( userEmail, woopayUserSession ) {
