@@ -193,6 +193,7 @@ class WC_Payments_Checkout {
 			'isPreview'                       => is_preview(),
 			'isSavedCardsEnabled'             => $this->gateway->is_saved_cards_enabled(),
 			'isExpressCheckoutElementEnabled' => WC_Payments_Features::is_stripe_ece_enabled(),
+			'isTokenizedCartPrbEnabled'       => WC_Payments_Features::is_tokenized_cart_prb_enabled(),
 			'isWooPayEnabled'                 => $this->woopay_util->should_enable_woopay( $this->gateway ) && $this->woopay_util->should_enable_woopay_on_cart_or_checkout(),
 			'isWoopayExpressCheckoutEnabled'  => $this->woopay_util->is_woopay_express_checkout_enabled(),
 			'isWoopayFirstPartyAuthEnabled'   => $this->woopay_util->is_woopay_first_party_auth_enabled(),
@@ -216,23 +217,25 @@ class WC_Payments_Checkout {
 		 */
 		$payment_fields = apply_filters( 'wcpay_payment_fields_js_config', $js_config );
 
-		$payment_fields['accountDescriptor']                 = $this->gateway->get_account_statement_descriptor();
-		$payment_fields['addPaymentReturnURL']               = wc_get_account_endpoint_url( 'payment-methods' );
-		$payment_fields['gatewayId']                         = WC_Payment_Gateway_WCPay::GATEWAY_ID;
-		$payment_fields['isCheckout']                        = is_checkout();
-		$payment_fields['paymentMethodsConfig']              = $this->get_enabled_payment_method_config();
-		$payment_fields['testMode']                          = WC_Payments::mode()->is_test();
-		$payment_fields['upeAppearance']                     = get_transient( WC_Payment_Gateway_WCPay::UPE_APPEARANCE_TRANSIENT );
-		$payment_fields['upeBnplProductPageAppearance']      = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_PRODUCT_PAGE_APPEARANCE_TRANSIENT );
-		$payment_fields['upeBnplProductPageAppearanceTheme'] = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_PRODUCT_PAGE_APPEARANCE_THEME_TRANSIENT );
-		$payment_fields['upeBnplClassicCartAppearance']      = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CLASSIC_CART_APPEARANCE_TRANSIENT );
-		$payment_fields['upeBnplClassicCartAppearanceTheme'] = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CLASSIC_CART_APPEARANCE_THEME_TRANSIENT );
-		$payment_fields['upeBnplCartBlockAppearance']        = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CART_BLOCK_APPEARANCE_TRANSIENT );
-		$payment_fields['upeBnplCartBlockAppearanceTheme']   = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CART_BLOCK_APPEARANCE_THEME_TRANSIENT );
-		$payment_fields['wcBlocksUPEAppearance']             = get_transient( WC_Payment_Gateway_WCPay::WC_BLOCKS_UPE_APPEARANCE_TRANSIENT );
-		$payment_fields['wcBlocksUPEAppearanceTheme']        = get_transient( WC_Payment_Gateway_WCPay::WC_BLOCKS_UPE_APPEARANCE_THEME_TRANSIENT );
-		$payment_fields['cartContainsSubscription']          = $this->gateway->is_subscription_item_in_cart();
-		$payment_fields['currency']                          = get_woocommerce_currency();
+		$payment_fields['accountDescriptor']                  = $this->gateway->get_account_statement_descriptor();
+		$payment_fields['addPaymentReturnURL']                = wc_get_account_endpoint_url( 'payment-methods' );
+		$payment_fields['gatewayId']                          = WC_Payment_Gateway_WCPay::GATEWAY_ID;
+		$payment_fields['isCheckout']                         = is_checkout();
+		$payment_fields['paymentMethodsConfig']               = $this->get_enabled_payment_method_config();
+		$payment_fields['testMode']                           = WC_Payments::mode()->is_test();
+		$payment_fields['upeAppearance']                      = get_transient( WC_Payment_Gateway_WCPay::UPE_APPEARANCE_TRANSIENT );
+		$payment_fields['upeAddPaymentMethodAppearance']      = get_transient( WC_Payment_Gateway_WCPay::UPE_ADD_PAYMENT_METHOD_APPEARANCE_TRANSIENT );
+		$payment_fields['upeAddPaymentMethodAppearanceTheme'] = get_transient( WC_Payment_Gateway_WCPay::UPE_ADD_PAYMENT_METHOD_APPEARANCE_THEME_TRANSIENT );
+		$payment_fields['upeBnplProductPageAppearance']       = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_PRODUCT_PAGE_APPEARANCE_TRANSIENT );
+		$payment_fields['upeBnplProductPageAppearanceTheme']  = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_PRODUCT_PAGE_APPEARANCE_THEME_TRANSIENT );
+		$payment_fields['upeBnplClassicCartAppearance']       = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CLASSIC_CART_APPEARANCE_TRANSIENT );
+		$payment_fields['upeBnplClassicCartAppearanceTheme']  = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CLASSIC_CART_APPEARANCE_THEME_TRANSIENT );
+		$payment_fields['upeBnplCartBlockAppearance']         = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CART_BLOCK_APPEARANCE_TRANSIENT );
+		$payment_fields['upeBnplCartBlockAppearanceTheme']    = get_transient( WC_Payment_Gateway_WCPay::UPE_BNPL_CART_BLOCK_APPEARANCE_THEME_TRANSIENT );
+		$payment_fields['wcBlocksUPEAppearance']              = get_transient( WC_Payment_Gateway_WCPay::WC_BLOCKS_UPE_APPEARANCE_TRANSIENT );
+		$payment_fields['wcBlocksUPEAppearanceTheme']         = get_transient( WC_Payment_Gateway_WCPay::WC_BLOCKS_UPE_APPEARANCE_THEME_TRANSIENT );
+		$payment_fields['cartContainsSubscription']           = $this->gateway->is_subscription_item_in_cart();
+		$payment_fields['currency']                           = get_woocommerce_currency();
 		$cart_total                  = ( WC()->cart ? WC()->cart->get_total( '' ) : 0 );
 		$payment_fields['cartTotal'] = WC_Payments_Utils::prepare_amount( $cart_total, get_woocommerce_currency() );
 
