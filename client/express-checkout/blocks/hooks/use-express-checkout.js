@@ -56,8 +56,7 @@ export const useExpressCheckout = ( {
 				lineItems: normalizeLineItems( billing?.cartTotalItems ),
 				emailRequired: true,
 				// Oxygenz : Désactivation expédition au paiement
-				//shippingAddressRequired: shippingData?.needsShipping,
-				shippingAddressRequired: false,
+				shippingAddressRequired: false /* shippingData?.needsShipping */,
 				phoneNumberRequired:
 					getExpressCheckoutData( 'checkout' )?.needs_payer_phone ??
 					false,

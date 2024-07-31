@@ -293,7 +293,8 @@ jQuery( ( $ ) => {
 				const clickOptions = {
 					lineItems: normalizeLineItems( options.displayItems ),
 					emailRequired: true,
-					shippingAddressRequired: options.requestShipping,
+					// Oxygenz : Désactivation expédition au paiement
+					shippingAddressRequired: false /* options.requestShipping */,
 					phoneNumberRequired: options.requestPhone,
 					shippingRates,
 				};

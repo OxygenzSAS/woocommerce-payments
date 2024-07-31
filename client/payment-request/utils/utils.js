@@ -53,9 +53,10 @@ export const getPaymentRequest = ( {
 		total: getTotalPaymentItem( total ),
 		currency: getPaymentRequestData( 'checkout' )?.currency_code,
 		country,
-		requestPayerName: false,
-		requestPayerEmail: false,
-		requestPayerPhone:  false /* getPaymentRequestData( 'checkout' )
+		// Oxygenz : Désactivation infos au paiement
+		requestPayerName: false /* true */,
+		requestPayerEmail: false /* true */,
+		requestPayerPhone: false /* getPaymentRequestData( 'checkout' )
 			?.needs_payer_phone */,
 		requestShipping,
 		displayItems,

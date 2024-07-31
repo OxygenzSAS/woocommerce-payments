@@ -642,6 +642,7 @@ jQuery( ( $ ) => {
 					wcpayPaymentRequest.startPaymentRequest( {
 						stripe: api.getStripe(),
 						total: cart.total.amount,
+						// Oxygenz : Désactivation expédition au paiement
 						requestShipping: false /* cart.needs_shipping */,
 						displayItems: cart.displayItems,
 					} );
