@@ -9,12 +9,13 @@ import { Elements } from '@stripe/react-stripe-js';
  */
 import ExpressCheckoutComponent from './express-checkout-component';
 import { getExpressCheckoutButtonAppearance } from 'wcpay/express-checkout/utils';
+import '../express-checkout-element.scss';
 
 const ExpressCheckoutContainer = ( props ) => {
 	const { api, billing } = props;
 
 	const stripePromise = useMemo( () => {
-		return api.loadStripe();
+		return api.loadStripe( true );
 	}, [ api ] );
 
 	const options = {
