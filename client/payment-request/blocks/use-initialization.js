@@ -49,7 +49,8 @@ export const useInitialization = ( {
 		const pr = getPaymentRequest( {
 			stripe,
 			total: billing?.cartTotal?.value,
-			requestShipping: shippingData?.needsShipping,
+			// Oxygenz : Désactivation expédition au paiement
+			requestShipping: false /*shippingData?.needsShipping*/,
 			displayItems: normalizeLineItems( billing?.cartTotalItems ),
 		} );
 

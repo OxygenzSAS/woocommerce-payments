@@ -596,7 +596,8 @@ jQuery( ( $ ) => {
 						total: cart.total.amount,
 						currency: getExpressCheckoutData( 'checkout' )
 							?.currency_code,
-						requestShipping: cart.needs_shipping,
+						// Oxygenz : Désactivation expédition au paiement
+						requestShipping: /*cart.needs_shipping*/,
 						requestPhone:
 							getExpressCheckoutData( 'checkout' )
 								?.needs_payer_phone ?? false,

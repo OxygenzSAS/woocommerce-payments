@@ -54,7 +54,8 @@ export const getPaymentRequest = ( { stripe, cartData, productData } ) => {
 					currency: productData.currency,
 					total: productData.total,
 					displayItems: productData.displayItems,
-					requestShipping: productData.needs_shipping,
+					// Oxygenz : Désactivation expédition au paiement
+					requestShipping: false /*productData.needs_shipping*/,
 			  }
 			: {
 					currency: cartData.totals.currency_code.toLowerCase(),

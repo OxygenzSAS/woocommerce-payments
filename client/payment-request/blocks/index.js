@@ -42,7 +42,8 @@ const paymentRequestPaymentMethod = ( api ) => ( {
 			const pr = getPaymentRequest( {
 				stripe,
 				total: parseInt( cartData?.cartTotals?.total_price ?? 0, 10 ),
-				requestShipping: cartData?.cartNeedsShipping,
+				// Oxygenz : Désactivation expédition au paiement
+				requestShipping: false /*cartData?.cartNeedsShipping*/,
 				displayItems: [],
 			} );
 
