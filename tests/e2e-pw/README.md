@@ -17,7 +17,7 @@ See [tests/e2e/README.md](/tests/e2e/README.md) for detailed e2e environment set
 -   `npm run test:e2e-pw` headless run from within a linux docker container.
 -   `npm run test:e2e-pw-ui` runs tests in interactive UI mode from within a linux docker container – recommended for authoring tests and re-running failed tests.
 -   `npm run test:e2e-pw keyword` runs tests only with a specific keyword in the file name, e.g. `dispute` or `checkout`.
--   `npm run test:e2e-pw --update-snapshots` updates snapshots.
+-   `npm run test:e2e-pw -- --update-snapshots` updates snapshots. This can be combined with a keyword to update a specific set of snapshots, e.g. `npm run test:e2e-pw -- --update-snapshots deposits`.
 
 ## FAQs
 
@@ -39,7 +39,7 @@ Prefer the use of [user-facing attribute or test-id locators](https://playwright
 
 ```ts
 // Prefer locating by role, label, text, or test id when possible. See https://playwright.dev/docs/locators
-await page.getByRole( 'button', { name: 'All deposits' } ).click();
+await page.getByRole( 'button', { name: 'All payouts' } ).click();
 await page.getByLabel( 'Select a deposit status' ).selectOption( 'Pending' );
 await expect( page.getByText( 'Order received' ) ).toBeVisible();
 await page.getByTestId( 'accept-dispute-button' ).click();
@@ -56,7 +56,7 @@ Visual regression tests are captured by the [`toHaveScreenshot()` function](http
 await expect( page ).toHaveScreenshot();
 
 await expect(
-	page.getByRole( 'button', { name: 'All deposits' } )
+	page.getByRole( 'button', { name: 'All payouts' } )
 ).toHaveScreenshot();
 ```
 
