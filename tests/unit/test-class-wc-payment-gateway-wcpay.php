@@ -197,6 +197,21 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 	 */
 	private $locale_backup;
 
+
+	/**
+	 * Backup of $wp->query_vars
+	 *
+	 * @var array
+	 */
+	private $wp_query_vars_backup;
+
+	/**
+	 * Backup of $wp_query->query_vars
+	 *
+	 * @var array
+	 */
+	private $wp_query_query_vars_backup;
+
 	/**
 	 * Pre-test setup
 	 */
@@ -216,6 +231,7 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 					'create_and_confirm_setup_intent',
 					'get_payment_method',
 					'get_timeline',
+					'get_latest_fraud_ruleset',
 				]
 			)
 			->getMock();
@@ -280,6 +296,11 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 		wcpay_get_test_container()->replace( OrderService::class, $mock_order_service );
 
 		$this->locale_backup = WC()->countries->get_country_locale();
+
+		global $wp;
+		global $wp_query;
+		$this->wp_query_vars_backup       = $wp->query_vars;
+		$this->wp_query_query_vars_backup = $wp_query->query_vars;
 	}
 
 	/**
@@ -317,6 +338,11 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 		wcpay_get_test_container()->reset_all_replacements();
 		WC()->session->set( 'wc_notices', [] );
 		WC()->countries->locale = $this->locale_backup;
+
+		global $wp;
+		global $wp_query;
+		$wp->query_vars       = $this->wp_query_vars_backup;
+		$wp_query->query_vars = $this->wp_query_query_vars_backup;
 	}
 
 	public function test_process_redirect_payment_intent_processing() {
@@ -703,6 +729,77 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 		$this->assertFalse( $becs_method->is_enabled_at_checkout( 'US' ) );
 		$this->assertFalse( $affirm_method->is_enabled_at_checkout( 'US' ) );
 		$this->assertFalse( $afterpay_method->is_enabled_at_checkout( 'US' ) );
+	}
+
+	public function test_payment_methods_enabled_based_on_currency_limits() {
+		WC_Helper_Site_Currency::$mock_site_currency = 'USD';
+
+		WC()->session->init();
+		WC()->cart->empty_cart();
+		// Total is 100 USD, which is above both payment methods (Affirm and AfterPay) minimums.
+		WC()->cart->add_to_cart( WC_Helper_Product::create_simple_product()->get_id(), 10 );
+		WC()->cart->calculate_totals();
+
+		$affirm_method   = $this->payment_methods['affirm'];
+		$afterpay_method = $this->payment_methods['afterpay_clearpay'];
+
+		$this->assertTrue( $affirm_method->is_enabled_at_checkout( 'US' ) );
+		$this->assertTrue( $afterpay_method->is_enabled_at_checkout( 'US' ) );
+	}
+
+	public function test_payment_methods_disabled_based_on_currency_limits() {
+		WC_Helper_Site_Currency::$mock_site_currency = 'USD';
+
+		WC()->session->init();
+		WC()->cart->empty_cart();
+		// Total is 40 USD, which is below Affirm minimum.
+		WC()->cart->add_to_cart( WC_Helper_Product::create_simple_product()->get_id(), 4 );
+		WC()->cart->calculate_totals();
+
+		$affirm_method   = $this->payment_methods['affirm'];
+		$afterpay_method = $this->payment_methods['afterpay_clearpay'];
+
+		$this->assertFalse( $affirm_method->is_enabled_at_checkout( 'US' ) );
+		$this->assertTrue( $afterpay_method->is_enabled_at_checkout( 'US' ) );
+	}
+
+	public function test_payment_methods_enabled_based_on_currency_limits_in_order_pay() {
+		global $wp;
+		global $wp_query;
+
+		WC_Helper_Site_Currency::$mock_site_currency = 'USD';
+
+		// Total is 100 USD, which is above both payment methods (Affirm and AfterPay) minimums.
+		$order                = WC_Helper_Order::create_order( 1, 100 );
+		$order_id             = $order->get_id();
+		$wp->query_vars       = [ 'order-pay' => strval( $order_id ) ];
+		$wp_query->query_vars = [ 'order-pay' => strval( $order_id ) ];
+
+		$affirm_method   = $this->payment_methods['affirm'];
+		$afterpay_method = $this->payment_methods['afterpay_clearpay'];
+
+		$this->assertTrue( $affirm_method->is_enabled_at_checkout( 'US' ) );
+		$this->assertTrue( $afterpay_method->is_enabled_at_checkout( 'US' ) );
+	}
+
+	public function test_payment_methods_disabled_based_on_currency_limits_in_order_pay() {
+		global $wp;
+		global $wp_query;
+
+		WC_Helper_Site_Currency::$mock_site_currency = 'USD';
+
+		// Total is 40 USD, which is below Affirm minimum.
+		$order                = WC_Helper_Order::create_order( 1, 40 );
+		$order_id             = $order->get_id();
+		$wp->query_vars       = [ 'order-pay' => strval( $order_id ) ];
+		$wp_query->query_vars = [ 'order-pay' => strval( $order_id ) ];
+		$order->set_currency( 'USD' );
+
+		$affirm_method   = $this->payment_methods['affirm'];
+		$afterpay_method = $this->payment_methods['afterpay_clearpay'];
+
+		$this->assertFalse( $affirm_method->is_enabled_at_checkout( 'US' ) );
+		$this->assertTrue( $afterpay_method->is_enabled_at_checkout( 'US' ) );
 	}
 
 	public function test_only_valid_payment_methods_returned_for_currency() {
@@ -2788,6 +2885,7 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 	}
 
 	public function test_gateway_enabled_when_payment_method_is_enabled() {
+		$this->card_gateway->update_option( 'enabled', 'yes' );
 		$afterpay = $this->get_gateway( Payment_Method::AFTERPAY );
 		$afterpay->update_option( 'upe_enabled_payment_method_ids', [ Payment_Method::AFTERPAY, Payment_Method::CARD, Payment_Method::P24, Payment_Method::BANCONTACT ] );
 		$this->prepare_gateway_for_availability_testing( $afterpay );
@@ -2796,8 +2894,18 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 	}
 
 	public function test_gateway_disabled_when_payment_method_is_disabled() {
+		$this->card_gateway->update_option( 'enabled', 'yes' );
 		$afterpay = $this->get_gateway( Payment_Method::AFTERPAY );
 		$afterpay->update_option( 'upe_enabled_payment_method_ids', [ Payment_Method::CARD, Payment_Method::P24, Payment_Method::BANCONTACT ] );
+		$this->prepare_gateway_for_availability_testing( $afterpay );
+
+		$this->assertFalse( $afterpay->is_available() );
+	}
+
+	public function test_gateway_disabled_when_card_gateway_is_disabled() {
+		$this->card_gateway->update_option( 'enabled', 'no' );
+		$afterpay = $this->get_gateway( Payment_Method::AFTERPAY );
+		$afterpay->update_option( 'upe_enabled_payment_method_ids', [ Payment_Method::AFTERPAY, Payment_Method::CARD, Payment_Method::P24, Payment_Method::BANCONTACT ] );
 		$this->prepare_gateway_for_availability_testing( $afterpay );
 
 		$this->assertFalse( $afterpay->is_available() );
@@ -3433,38 +3541,6 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 	}
 
 	/**
-	 * @expectedDeprecated is_in_dev_mode
-	 */
-	public function test_is_in_dev_mode() {
-		$mode = WC_Payments::mode();
-
-		$mode->dev();
-		$this->assertTrue( $this->card_gateway->is_in_dev_mode() );
-
-		$mode->test();
-		$this->assertFalse( $this->card_gateway->is_in_dev_mode() );
-
-		$mode->live();
-		$this->assertFalse( $this->card_gateway->is_in_dev_mode() );
-	}
-
-	/**
-	 * @expectedDeprecated is_in_test_mode
-	 */
-	public function test_is_in_test_mode() {
-		$mode = WC_Payments::mode();
-
-		$mode->dev();
-		$this->assertTrue( $this->card_gateway->is_in_test_mode() );
-
-		$mode->test();
-		$this->assertTrue( $this->card_gateway->is_in_test_mode() );
-
-		$mode->live();
-		$this->assertFalse( $this->card_gateway->is_in_test_mode() );
-	}
-
-	/**
 	 * Create a partial mock for WC_Payment_Gateway_WCPay class.
 	 *
 	 * @param array $methods                 Method names that need to be mocked.
@@ -3763,6 +3839,8 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 
 		$this->expect_router_factor( Factor::WCPAY_SUBSCRIPTION_SIGNUP(), false );
 		$this->card_gateway->should_use_new_process( $order );
+
+		remove_filter( 'wcpay_is_wcpay_subscriptions_enabled', '__return_true' );
 	}
 
 	public function test_new_process_payment() {
@@ -3937,7 +4015,7 @@ class WC_Payment_Gateway_WCPay_Test extends WCPAY_UnitTestCase {
 	private function prepare_gateway_for_availability_testing( $gateway ) {
 		WC_Payments::mode()->test();
 		$current_currency = strtolower( get_woocommerce_currency() );
-		$this->mock_wcpay_account->expects( $this->once() )->method( 'get_account_customer_supported_currencies' )->will(
+		$this->mock_wcpay_account->expects( $this->any() )->method( 'get_account_customer_supported_currencies' )->will(
 			$this->returnValue(
 				[
 					$current_currency,

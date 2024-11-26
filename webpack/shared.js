@@ -20,17 +20,16 @@ module.exports = {
 			cart: './client/cart/index.js',
 			checkout: './client/checkout/classic/event-handlers.js',
 			'express-checkout': './client/express-checkout/index.js',
-			'payment-request': './client/payment-request/index.js',
-			'tokenized-payment-request':
-				'./client/tokenized-payment-request/index.js',
+			'tokenized-express-checkout':
+				'./client/tokenized-express-checkout/index.js',
 			'subscription-edit-page': './client/subscription-edit-page.js',
 			tos: './client/tos/index.js',
 			'payment-gateways': './client/payment-gateways/index.js',
-			'multi-currency': './client/multi-currency/index.js',
+			'multi-currency': './includes/multi-currency/client/index.js',
 			'multi-currency-switcher-block':
-				'./client/multi-currency/blocks/currency-switcher.js',
+				'./includes/multi-currency/client/blocks/currency-switcher.js',
 			'multi-currency-analytics':
-				'./client/multi-currency-analytics/index.js',
+				'./includes/multi-currency/client/analytics/index.js',
 			order: './client/order/index.js',
 			'subscriptions-empty-state':
 				'./client/subscriptions-empty-state/index.js',
@@ -113,9 +112,17 @@ module.exports = {
 	},
 	resolve: {
 		extensions: [ '.ts', '.tsx', '.json', '.js', '.jsx' ],
-		modules: [ path.join( process.cwd(), 'client' ), 'node_modules' ],
+		modules: [
+			path.join( process.cwd(), 'client' ),
+			path.join( process.cwd(), 'includes/multi-currency/client' ),
+			'node_modules',
+		],
 		alias: {
 			assets: path.resolve( process.cwd(), 'assets' ),
+			'multi-currency': path.resolve(
+				process.cwd(),
+				'includes/multi-currency/client'
+			),
 			wcpay: path.resolve( process.cwd(), 'client' ),
 			iti: path.resolve(
 				process.cwd(),

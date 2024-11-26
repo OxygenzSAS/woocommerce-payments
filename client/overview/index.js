@@ -32,6 +32,7 @@ import { useDisputes, useGetSettings, useSettings } from 'data';
 import SandboxModeSwitchToLiveNotice from 'wcpay/components/sandbox-mode-switch-to-live-notice';
 import './style.scss';
 import BannerNotice from 'wcpay/components/banner-notice';
+import { PayoutsRenameNotice } from 'wcpay/deposits/rename-notice';
 
 const OverviewPageError = () => {
 	const queryParams = getQuery();
@@ -67,7 +68,7 @@ const OverviewPage = () => {
 		wpcomReconnectUrl,
 	} = wcpaySettings;
 
-	const isOnboardingTestMode = wcpaySettings.onboardingTestMode;
+	const isTestModeOnboarding = wcpaySettings.testModeOnboarding;
 	const { isLoading: settingsIsLoading } = useSettings();
 	const [
 		isTestDriveSuccessDisplayed,
@@ -175,7 +176,7 @@ const OverviewPage = () => {
 					) }
 				</Notice>
 			) }
-			{ isOnboardingTestMode ? (
+			{ isTestModeOnboarding ? (
 				<SandboxModeSwitchToLiveNotice
 					from="WCPAY_OVERVIEW"
 					source="wcpay-overview-page"
@@ -183,16 +184,18 @@ const OverviewPage = () => {
 			) : (
 				<TestModeNotice
 					currentPage="overview"
-					isOnboardingTestMode={ isOnboardingTestMode }
+					isTestModeOnboarding={ isTestModeOnboarding }
 					actions={ [] }
 				/>
 			) }
 			<ErrorBoundary>
 				<FRTDiscoverabilityBanner />
 			</ErrorBoundary>
+
 			{ showConnectionSuccess && <ConnectionSuccessNotice /> }
 			{ ! accountRejected && ! accountUnderReview && (
 				<ErrorBoundary>
+					<PayoutsRenameNotice />
 					<Welcome />
 
 					{ showTaskList && (

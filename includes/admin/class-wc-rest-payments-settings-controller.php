@@ -5,6 +5,7 @@
  * @package WooCommerce\Payments\Admin
  */
 
+use WCPay\Constants\Payment_Method;
 use WCPay\Constants\Country_Code;
 use WCPay\Fraud_Prevention\Fraud_Risk_Tools;
 use WCPay\Constants\Track_Events;
@@ -481,6 +482,7 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 				'is_wcpay_enabled'                       => $this->wcpay_gateway->is_enabled(),
 				'is_manual_capture_enabled'              => 'yes' === $this->wcpay_gateway->get_option( 'manual_capture' ),
 				'is_test_mode_enabled'                   => WC_Payments::mode()->is_test(),
+				'is_test_mode_onboarding'                => WC_Payments::mode()->is_test_mode_onboarding(),
 				'is_dev_mode_enabled'                    => WC_Payments::mode()->is_dev(),
 				'is_multi_currency_enabled'              => WC_Payments_Features::is_customer_multi_currency_enabled(),
 				'is_wcpay_subscriptions_enabled'         => WC_Payments_Features::is_wcpay_subscriptions_enabled(),
@@ -508,12 +510,11 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 				'payment_request_button_size'            => $this->wcpay_gateway->get_option( 'payment_request_button_size' ),
 				'payment_request_button_type'            => $this->wcpay_gateway->get_option( 'payment_request_button_type' ),
 				'payment_request_button_theme'           => $this->wcpay_gateway->get_option( 'payment_request_button_theme' ),
-				'payment_request_button_border_radius'   => WC_Payments_Features::is_stripe_ece_enabled() ? $this->wcpay_gateway->get_option( 'payment_request_button_border_radius', WC_Payments_Express_Checkout_Button_Handler::DEFAULT_BORDER_RADIUS_IN_PX ) : WC_Payments_Express_Checkout_Button_Handler::DEFAULT_BORDER_RADIUS_IN_PX,
+				'payment_request_button_border_radius'   => $this->wcpay_gateway->get_option( 'payment_request_button_border_radius', WC_Payments_Express_Checkout_Button_Handler::DEFAULT_BORDER_RADIUS_IN_PX ),
 				'is_saved_cards_enabled'                 => $this->wcpay_gateway->is_saved_cards_enabled(),
 				'is_card_present_eligible'               => $this->wcpay_gateway->is_card_present_eligible() && isset( WC()->payment_gateways()->get_available_payment_gateways()['cod'] ),
 				'is_woopay_enabled'                      => 'yes' === $this->wcpay_gateway->get_option( 'platform_checkout' ),
 				'show_woopay_incompatibility_notice'     => get_option( 'woopay_invalid_extension_found', false ),
-				'show_express_checkout_incompatibility_notice' => $this->should_show_express_checkout_incompatibility_notice(),
 				'woopay_custom_message'                  => $this->wcpay_gateway->get_option( 'platform_checkout_custom_message' ),
 				'woopay_store_logo'                      => $this->wcpay_gateway->get_option( 'platform_checkout_store_logo' ),
 				'woopay_enabled_locations'               => $this->wcpay_gateway->get_option( 'platform_checkout_button_locations', array_keys( $wcpay_form_fields['payment_request_button_locations']['options'] ) ),
@@ -603,6 +604,11 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 		$payment_method_ids_to_enable = $request->get_param( 'enabled_payment_method_ids' );
 		$available_payment_methods    = $this->wcpay_gateway->get_upe_available_payment_methods();
 
+		// Only 'card' and 'link' support manual capture. Leave them enabled if they're already enabled.
+		if ( $request->has_param( 'is_manual_capture_enabled' ) && $request->get_param( 'is_manual_capture_enabled' ) ) {
+			$payment_method_ids_to_enable = array_intersect( $payment_method_ids_to_enable, [ Payment_Method::CARD, Payment_Method::LINK ] );
+		}
+
 		$payment_method_ids_to_enable = array_values(
 			array_filter(
 				$payment_method_ids_to_enable,
@@ -610,6 +616,18 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 					return in_array( $payment_method, $available_payment_methods, true );
 				}
 			)
+		);
+
+		$this->request_unrequested_payment_methods( $payment_method_ids_to_enable );
+		$capability_key_map      = $this->wcpay_gateway->get_payment_method_capability_key_map();
+		$payment_method_statuses = $this->wcpay_gateway->get_upe_enabled_payment_method_statuses();
+
+		$payment_method_ids_to_enable = array_filter(
+			$payment_method_ids_to_enable,
+			function ( $payment_method_id_to_enable ) use ( $capability_key_map, $payment_method_statuses ) {
+				$stripe_key = $capability_key_map[ $payment_method_id_to_enable ] ?? null;
+				return array_key_exists( $stripe_key, $payment_method_statuses ) && 'active' === $payment_method_statuses[ $stripe_key ]['status'];
+			}
 		);
 
 		$active_payment_methods   = $this->wcpay_gateway->get_upe_enabled_payment_method_ids();
@@ -649,10 +667,6 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 		// Keep the enabled payment method IDs list synchronized across gateway setting objects unless we remove this list with all dependencies.
 		foreach ( WC_Payments::get_payment_gateway_map() as $payment_gateway ) {
 			$payment_gateway->update_option( 'upe_enabled_payment_method_ids', $payment_method_ids_to_enable );
-		}
-
-		if ( $payment_method_ids_to_enable ) {
-			$this->request_unrequested_payment_methods( $payment_method_ids_to_enable );
 		}
 	}
 
@@ -1100,39 +1114,5 @@ class WC_REST_Payments_Settings_Controller extends WC_Payments_REST_Controller {
 		$reporting_export_language = $request->get_param( 'reporting_export_language' );
 
 		$this->wcpay_gateway->update_option( 'reporting_export_language', $reporting_export_language );
-	}
-
-	/**
-	 * Whether to show the express checkout incompatibility notice.
-	 *
-	 * @return bool
-	 */
-	private function should_show_express_checkout_incompatibility_notice() {
-		// Apply filters to empty arrays to check if any plugin is modifying the checkout fields.
-		$after_apply_billing  = apply_filters( 'woocommerce_billing_fields', [], '' );
-		$after_apply_shipping = apply_filters( 'woocommerce_shipping_fields', [], '' );
-		$after_apply_checkout = array_filter(
-			apply_filters(
-				'woocommerce_checkout_fields',
-				[
-					'billing'  => [],
-					'shipping' => [],
-					'account'  => [],
-					'order'    => [],
-				]
-			)
-		);
-		// All the input values are empty, so if any of them is not empty, it means that the checkout fields are being modified.
-		$is_modifying_checkout_fields = ! empty(
-			array_filter(
-				[
-					'after_apply_billing'  => $after_apply_billing,
-					'after_apply_shipping' => $after_apply_shipping,
-					'after_apply_checkout' => $after_apply_checkout,
-				]
-			)
-		);
-
-		return $is_modifying_checkout_fields;
 	}
 }

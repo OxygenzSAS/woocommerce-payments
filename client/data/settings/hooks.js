@@ -85,6 +85,12 @@ export const useTestMode = () => {
 	return [ isTestModeEnabled, updateIsTestModeEnabled ];
 };
 
+export const useTestModeOnboarding = () =>
+	useSelect(
+		( select ) => select( STORE_NAME ).getIsTestModeOnboarding(),
+		[]
+	);
+
 export const useDevMode = () =>
 	useSelect( ( select ) => select( STORE_NAME ).getIsDevModeEnabled(), [] );
 
@@ -322,6 +328,7 @@ export const useSettings = () => {
 	const isSaving = useSelect( ( select ) =>
 		select( STORE_NAME ).isSavingSettings()
 	);
+	const isDirty = useSelect( ( select ) => select( STORE_NAME ).isDirty() );
 
 	const isLoading = useSelect( ( select ) => {
 		select( STORE_NAME ).getSettings();
@@ -336,6 +343,7 @@ export const useSettings = () => {
 		isLoading,
 		saveSettings,
 		isSaving,
+		isDirty,
 	};
 };
 
@@ -489,11 +497,6 @@ export const useAdvancedFraudProtectionSettings = () => {
 export const useWooPayShowIncompatibilityNotice = () =>
 	useSelect( ( select ) =>
 		select( STORE_NAME ).getShowWooPayIncompatibilityNotice()
-	);
-
-export const useExpressCheckoutShowIncompatibilityNotice = () =>
-	useSelect( ( select ) =>
-		select( STORE_NAME ).getShowExpressCheckoutIncompatibilityNotice()
 	);
 
 export const useStripeBilling = () => {

@@ -40,14 +40,14 @@ export const useExpressCheckout = ( {
 	};
 
 	const completePayment = ( redirectUrl ) => {
-		onCompletePaymentHandler( redirectUrl );
+		onCompletePaymentHandler();
 		window.location = redirectUrl;
 	};
 
 	const abortPayment = ( onConfirmEvent, message ) => {
 		onConfirmEvent.paymentFailed( { reason: 'fail' } );
 		setExpressPaymentError( message );
-		onAbortPaymentHandler( onConfirmEvent, message );
+		onAbortPaymentHandler();
 	};
 
 	const onButtonClick = useCallback(
@@ -68,6 +68,8 @@ export const useExpressCheckout = ( {
 						};
 					}
 				),
+				allowedShippingCountries: getExpressCheckoutData( 'checkout' )
+					.allowed_shipping_countries,
 			};
 
 			// Click event from WC Blocks.

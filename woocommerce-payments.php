@@ -8,10 +8,10 @@
  * Text Domain: woocommerce-payments
  * Domain Path: /languages
  * WC requires at least: 7.6
- * WC tested up to: 9.2.0
+ * WC tested up to: 9.4.0
  * Requires at least: 6.0
  * Requires PHP: 7.3
- * Version: 8.1.0
+ * Version: 8.5.1
  * Requires Plugins: woocommerce
  *
  * @package WooCommerce\Payments
@@ -26,7 +26,6 @@ define( 'WCPAY_SUBSCRIPTIONS_ABSPATH', __DIR__ . '/vendor/woocommerce/subscripti
 
 require_once __DIR__ . '/vendor/autoload_packages.php';
 require_once __DIR__ . '/includes/class-wc-payments-features.php';
-require_once __DIR__ . '/includes/woopay-user/class-woopay-extension.php';
 require_once __DIR__ . '/includes/woopay/class-woopay-session.php';
 
 /**
@@ -43,7 +42,7 @@ function wcpay_activated() {
 		// Only redirect to onboarding when activated on its own. Either with a link...
 		isset( $_GET['action'] ) && 'activate' === $_GET['action'] // phpcs:ignore WordPress.Security.NonceVerification
 		// ...or with a bulk action.
-		|| isset( $_POST['checked'] ) && is_array( $_POST['checked'] ) && 1 === count( $_POST['checked'] ) // phpcs:ignore WordPress.Security.NonceVerification
+		|| isset( $_POST['checked'] ) && is_array( $_POST['checked'] ) && 1 === count( $_POST['checked'] ) // phpcs:ignore WordPress.Security.NonceVerification, Generic.CodeAnalysis.RequireExplicitBooleanOperatorPrecedence.MissingParentheses
 	) {
 		update_option( 'wcpay_should_redirect_to_onboarding', true );
 	}
@@ -155,7 +154,7 @@ function wcpay_init() {
 	 * Check https://github.com/Automattic/woocommerce-payments/issues/4759
 	 */
 	\WCPay\WooPay\WooPay_Session::init();
-	if ( WC_Payments_Features::is_tokenized_cart_prb_enabled() ) {
+	if ( WC_Payments_Features::is_tokenized_cart_ece_enabled() ) {
 		( new WC_Payments_Payment_Request_Session() )->init();
 	}
 }
@@ -394,15 +393,6 @@ function wcpay_tasks_init() {
 }
 
 add_action( 'plugins_loaded', 'wcpay_tasks_init' );
-
-/**
- * Register blocks extension for woopay.
- */
-function register_woopay_extension() {
-	( new WooPay_Extension() )->register_extend_rest_api_update_callback();
-}
-
-add_action( 'woocommerce_blocks_loaded', 'register_woopay_extension' );
 
 /**
  * As the class is defined in later versions of WC, Psalm infers error.

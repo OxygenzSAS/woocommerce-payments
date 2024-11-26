@@ -21,13 +21,20 @@ export const saveWooPaymentsSettings = async ( page: Page ) => {
 	} );
 };
 
+export const isMulticurrencyEnabled = async ( page: Page ) => {
+	await navigation.goToWooPaymentsSettings( page );
+
+	const checkboxTestId = 'multi-currency-toggle';
+	const isEnabled = await page.getByTestId( checkboxTestId ).isChecked();
+
+	return isEnabled;
+};
+
 export const activateMulticurrency = async ( page: Page ) => {
 	await navigation.goToWooPaymentsSettings( page );
 
 	const checkboxTestId = 'multi-currency-toggle';
-	const wasInitiallyEnabled = await page
-		.getByTestId( checkboxTestId )
-		.isChecked();
+	const wasInitiallyEnabled = await isMulticurrencyEnabled( page );
 
 	if ( ! wasInitiallyEnabled ) {
 		await page.getByTestId( checkboxTestId ).check();
@@ -210,5 +217,64 @@ export const setCurrencyCharmPricing = async (
 ) => {
 	await editCurrency( page, currencyCode );
 	await page.getByTestId( 'price_charm' ).selectOption( charmPricing );
+	await saveWooPaymentsSettings( page );
+};
+
+export const enablePaymentMethods = async (
+	page: Page,
+	paymentMethods: string[]
+) => {
+	await navigation.goToWooPaymentsSettings( page );
+
+	for ( const paymentMethodName of paymentMethods ) {
+		await page.getByLabel( paymentMethodName ).check();
+	}
+
+	await saveWooPaymentsSettings( page );
+};
+
+export const disablePaymentMethods = async (
+	page: Page,
+	paymentMethods: string[]
+) => {
+	await navigation.goToWooPaymentsSettings( page );
+
+	for ( const paymentMethodName of paymentMethods ) {
+		const checkbox = await page.getByLabel( paymentMethodName );
+
+		if ( await checkbox.isChecked() ) {
+			await checkbox.click();
+			await page.getByRole( 'button', { name: 'Remove' } ).click();
+		}
+	}
+
+	await saveWooPaymentsSettings( page );
+};
+
+export const isWooPayEnabled = async ( page: Page ) => {
+	await navigation.goToWooPaymentsSettings( page );
+
+	const checkboxTestId = 'woopay-toggle';
+	const isEnabled = await page.getByTestId( checkboxTestId ).isChecked();
+
+	return isEnabled;
+};
+
+export const activateWooPay = async ( page: Page ) => {
+	await navigation.goToWooPaymentsSettings( page );
+
+	const checkboxTestId = 'woopay-toggle';
+	const wasInitiallyEnabled = await isWooPayEnabled( page );
+
+	if ( ! wasInitiallyEnabled ) {
+		await page.getByTestId( checkboxTestId ).check();
+		await saveWooPaymentsSettings( page );
+	}
+	return wasInitiallyEnabled;
+};
+
+export const deactivateWooPay = async ( page: Page ) => {
+	await navigation.goToWooPaymentsSettings( page );
+	await page.getByTestId( 'woopay-toggle' ).uncheck();
 	await saveWooPaymentsSettings( page );
 };

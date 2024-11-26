@@ -19,7 +19,10 @@ const ApplePayPreview = () => <img src={ applePayImage } alt="" />;
 const tokenizedCartPaymentRequestPaymentMethod = ( api ) => ( {
 	name: PAYMENT_METHOD_NAME_PAYMENT_REQUEST,
 	content: (
-		<PaymentRequestExpress api={ api } stripe={ api.loadStripe( true ) } />
+		<PaymentRequestExpress
+			api={ api }
+			stripe={ api.loadStripeForExpressCheckout() }
+		/>
 	),
 	edit: <ApplePayPreview />,
 	canMakePayment: ( cartData ) => {
@@ -33,14 +36,11 @@ const tokenizedCartPaymentRequestPaymentMethod = ( api ) => ( {
 			return false;
 		}
 
-		if (
-			typeof wcpayConfig !== 'undefined' &&
-			wcpayConfig.isExpressCheckoutElementEnabled
-		) {
+		if ( typeof wcpayConfig !== 'undefined' ) {
 			return false;
 		}
 
-		return api.loadStripe( true ).then( ( stripe ) => {
+		return api.loadStripeForExpressCheckout().then( ( stripe ) => {
 			// Create a payment request and check if we can make a payment to determine whether to
 			// show the Payment Request Button or not. This is necessary because a browser might be
 			// able to load the Stripe JS object, but not support Payment Requests.

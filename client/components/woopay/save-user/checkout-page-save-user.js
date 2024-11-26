@@ -3,13 +3,10 @@
 /**
  * External dependencies
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { __ } from '@wordpress/i18n';
 import { useDispatch, useSelect } from '@wordpress/data';
-import {
-	extensionCartUpdate,
-	ValidationInputError,
-} from '@woocommerce/blocks-checkout'; // eslint-disable-line import/no-unresolved
+import { ValidationInputError } from '@woocommerce/blocks-checkout'; // eslint-disable-line import/no-unresolved
 import {
 	VALIDATION_STORE_KEY,
 	CHECKOUT_STORE_KEY,
@@ -20,10 +17,12 @@ import {
  */
 import PhoneNumberInput from 'settings/phone-input';
 import { getConfig } from 'utils/checkout';
+import { buildAjaxURL } from 'utils/express-checkout';
 import AdditionalInformation from './additional-information';
 import Agreement from './agreement';
 import Container from './container';
 import useWooPayUser from '../hooks/use-woopay-user';
+import request from '../../../checkout/utils/request';
 import useSelectedPaymentMethod from '../hooks/use-selected-payment-method';
 import { recordUserEvent } from 'tracks';
 import './style.scss';
@@ -42,9 +41,14 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 	const [ phoneNumber, setPhoneNumber ] = useState( '' );
 	const [ isPhoneValid, onPhoneValidationChange ] = useState( null );
 	const [ userDataSent, setUserDataSent ] = useState( false );
+	const isPhoneNumberTouched = useRef( false );
 
 	const checkoutIsProcessing = useSelect( ( select ) =>
 		select( CHECKOUT_STORE_KEY ).isProcessing()
+	);
+
+	const isBillingSameAsShipping = useSelect( ( select ) =>
+		select( CHECKOUT_STORE_KEY ).getUseShippingAsBilling()
 	);
 
 	const isRegisteredUser = useWooPayUser();
@@ -86,14 +90,13 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 		rememberMe.removeAttribute( 'disabled', 'disabled' );
 	}, [ checkoutIsProcessing, isBlocksCheckout ] );
 
-	const getPhoneFieldValue = () => {
+	const getPhoneFieldValue = useCallback( () => {
 		let phoneFieldValue = '';
 		if ( isBlocksCheckout ) {
 			phoneFieldValue =
 				document.getElementById( 'phone' )?.value ||
-				document.getElementById( 'shipping-phone' )?.value ||
-				// in case of virtual products, the shipping phone is not available. So we also need to check the billing phone.
 				document.getElementById( 'billing-phone' )?.value ||
+				document.getElementById( 'shipping-phone' )?.value ||
 				'';
 		} else {
 			// for classic checkout.
@@ -109,27 +112,33 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 		}
 
 		return phoneFieldValue;
-	};
+	}, [ isBlocksCheckout ] );
 
 	const sendExtensionData = useCallback(
 		( shouldClearData = false ) => {
 			const data = shouldClearData
-				? {}
+				? { empty: 1 }
 				: {
-						save_user_in_woopay: isSaveDetailsChecked,
+						save_user_in_woopay: isSaveDetailsChecked ? 1 : 0,
 						woopay_source_url:
 							wcSettings?.storePages?.checkout?.permalink,
-						woopay_is_blocks: true,
+						woopay_is_blocks: 1,
 						woopay_viewport: `${ viewportWidth }x${ viewportHeight }`,
 						woopay_user_phone_field: {
 							full: phoneNumber,
 						},
 				  };
 
-			extensionCartUpdate( {
-				namespace: 'woopay',
-				data: data,
-			} )?.then( () => {
+			request(
+				buildAjaxURL(
+					getConfig( 'wcAjaxUrl' ),
+					'set_woopay_phone_number'
+				),
+				{
+					_ajax_nonce: getConfig( 'woopaySessionNonce' ),
+					...data,
+				}
+			).then( () => {
 				setUserDataSent( ! shouldClearData );
 			} );
 		},
@@ -172,7 +181,7 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 		} );
 	}, [] );
 
-	const updatePhoneNumberValidationError = useCallback( () => {
+	useEffect( () => {
 		if ( ! isSaveDetailsChecked ) {
 			clearValidationError( errorId );
 			if ( isPhoneValid !== null ) {
@@ -218,6 +227,55 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 		? isWCPayChosen
 		: isWCPayChosen && isNewPaymentTokenChosen;
 
+	const updatePhoneNumber = useCallback( () => {
+		if ( isPhoneNumberTouched.current ) {
+			return;
+		}
+
+		setPhoneNumber( getPhoneFieldValue() );
+	}, [ setPhoneNumber, getPhoneFieldValue, isPhoneNumberTouched ] );
+
+	useEffect( () => {
+		updatePhoneNumber();
+	}, [ updatePhoneNumber ] );
+
+	// Update the WooPay phone number on the phone field blur event.
+	useEffect( () => {
+		if ( ! isBlocksCheckout ) {
+			document
+				.querySelector( '#billing_phone' )
+				?.addEventListener( 'blur', updatePhoneNumber );
+			return;
+		}
+
+		updatePhoneNumber();
+
+		if ( isBillingSameAsShipping ) {
+			document
+				.querySelector( '#billing-phone' )
+				?.removeEventListener( 'blur', updatePhoneNumber );
+
+			document
+				.querySelector( '#shipping-phone' )
+				?.addEventListener( 'blur', updatePhoneNumber );
+			return;
+		}
+
+		document
+			.querySelector( '#shipping-phone' )
+			?.removeEventListener( 'blur', updatePhoneNumber );
+
+		document
+			.querySelector( '#billing-phone' )
+			?.addEventListener( 'blur', updatePhoneNumber );
+	}, [
+		isBillingSameAsShipping,
+		updatePhoneNumber,
+		isPhoneNumberTouched,
+		getPhoneFieldValue,
+		isBlocksCheckout,
+	] );
+
 	if (
 		! getConfig( 'forceNetworkSavedCards' ) ||
 		! isWCPayWithNewTokenChosen ||
@@ -231,8 +289,6 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 		clearValidationError( errorId );
 		return null;
 	}
-
-	updatePhoneNumberValidationError();
 
 	return (
 		<Container
@@ -277,7 +333,7 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 									<path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" />
 								</svg>
 							) }
-							<span>
+							<span className="wc-block-components-checkbox__label">
 								{ __(
 									'Securely save my information for 1-click checkout',
 									'woocommerce-payments'
@@ -310,6 +366,9 @@ const CheckoutPageSaveUser = ( { isBlocksCheckout } ) => {
 								onValidationChange={ onPhoneValidationChange }
 								onCountryDropdownClick={
 									handleCountryDropdownClick
+								}
+								onClick={ () =>
+									( isPhoneNumberTouched.current = true )
 								}
 								inputProps={ {
 									name:

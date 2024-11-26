@@ -31,7 +31,7 @@
 }
 
 #payment .payment_methods {
-	li label img {
+	li[class*='payment_method_woocommerce_payments'] label img {
 		float: right;
 		border: 0;
 		padding: 0;

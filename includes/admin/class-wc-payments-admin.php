@@ -158,9 +158,9 @@ class WC_Payments_Admin {
 			],
 			'wc-payments-deposits'     => [
 				'id'       => 'wc-payments-deposits',
-				'title'    => __( 'Deposits', 'woocommerce-payments' ),
+				'title'    => __( 'Payouts', 'woocommerce-payments' ),
 				'parent'   => 'wc-payments',
-				'path'     => '/payments/deposits',
+				'path'     => '/payments/payouts',
 				'nav_args' => [
 					'parent' => 'wc-payments',
 					'order'  => 20,
@@ -202,12 +202,36 @@ class WC_Payments_Admin {
 
 		// Add menu items.
 		add_action( 'admin_menu', [ $this, 'add_payments_menu' ], 0 );
-		add_action( 'admin_init', [ $this, 'maybe_redirect_from_payments_admin_child_pages' ], 11 ); // Run this after the WC setup wizard and onboarding redirection logic.
+		// Run this after the redirects in WC_Payments_Account.
+		add_action( 'admin_init', [ $this, 'maybe_redirect_from_payments_admin_child_pages' ], 16 );
 		add_action( 'admin_enqueue_scripts', [ $this, 'register_payments_scripts' ], 9 );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_payments_scripts' ], 9 );
 		add_action( 'woocommerce_admin_field_payment_gateways', [ $this, 'payment_gateways_container' ] );
 		add_action( 'woocommerce_admin_order_totals_after_total', [ $this, 'show_woopay_payment_method_name_admin' ] );
 		add_action( 'woocommerce_admin_order_totals_after_total', [ $this, 'display_wcpay_transaction_fee' ] );
+		add_action( 'admin_init', [ $this, 'redirect_deposits_to_payouts' ] );
+	}
+
+	/**
+	 * Redirect /payments/deposits to /payments/payouts.
+	 */
+	public function redirect_deposits_to_payouts() {
+		if ( is_admin() && isset( $_GET['page'] ) && 'wc-admin' === $_GET['page'] && isset( $_GET['path'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$redirect_map = [
+				'/payments/deposits'         => '/payments/payouts',
+				'/payments/deposits/details' => '/payments/payouts/details',
+			];
+			$query_params = $_GET; // phpcs:ignore WordPress.Security.NonceVerification
+			if ( isset( $redirect_map[ $query_params['path'] ] ) ) {
+				$query_params['path'] = $redirect_map[ $query_params['path'] ];
+				$redirect_url         = add_query_arg(
+					$query_params,
+					admin_url( 'admin.php?page=wc-admin' ),
+				);
+				wp_safe_redirect( $redirect_url );
+				exit;
+			}
+		}
 	}
 
 	/**
@@ -347,7 +371,43 @@ class WC_Payments_Admin {
 			remove_submenu_page( 'wc-admin&path=/payments/connect', 'wc-admin&path=/payments/onboarding' );
 		}
 
+		// We handle how we register this page slightly differently depending on if details are submitted or not.
+		if ( $this->account->is_stripe_connected() && ! $this->account->is_details_submitted() ) {
+			wc_admin_register_page(
+				[
+					'id'         => 'wc-payments-onboarding-kyc',
+					'title'      => __( 'Continue onboarding', 'woocommerce-payments' ),
+					'parent'     => 'wc-payments',
+					'path'       => '/payments/onboarding/kyc',
+					'capability' => 'manage_woocommerce',
+					'nav_args'   => [
+						'parent' => 'wc-payments',
+						'order'  => 50,
+					],
+				]
+			);
+			remove_submenu_page( 'wc-admin&path=/payments/connect', 'wc-admin&path=/payments/onboarding/kyc' );
+		}
+
 		if ( $should_render_full_menu ) {
+			// Only register if details are submitted and the account is PO.
+			if ( $this->account->is_stripe_connected()
+				&& $this->account->is_details_submitted()
+				&& $this->account->is_progressive_onboarding_in_progress()
+			) {
+				$this->admin_child_pages['wc-payments-onboarding-kyc'] = [
+					'id'         => 'wc-payments-onboarding-kyc',
+					'title'      => __( 'Continue onboarding', 'woocommerce-payments' ),
+					'parent'     => 'wc-payments',
+					'path'       => '/payments/onboarding/kyc',
+					'capability' => 'manage_woocommerce',
+					'nav_args'   => [
+						'parent' => 'wc-payments',
+						'order'  => 50,
+					],
+				];
+			}
+
 			if ( $this->account->is_card_present_eligible() && $this->account->has_card_readers_available() ) {
 				$this->admin_child_pages['wc-payments-card-readers'] = [
 					'id'       => 'wc-payments-card-readers',
@@ -397,6 +457,11 @@ class WC_Payments_Admin {
 				wc_admin_register_page( $admin_child_page );
 			}
 
+			// Remove the "Continue onboarding" submenu item, if it exists.
+			if ( in_array( 'wc-payments-onboarding-kyc', array_keys( $this->admin_child_pages ), true ) ) {
+				remove_submenu_page( 'wc-admin&path=/payments/overview', 'wc-admin&path=/payments/onboarding/kyc' );
+			}
+
 			wc_admin_connect_page(
 				[
 					'id'        => 'woocommerce-settings-payments-woocommerce-payments',
@@ -425,9 +490,9 @@ class WC_Payments_Admin {
 			wc_admin_register_page(
 				[
 					'id'     => 'wc-payments-deposit-details',
-					'title'  => __( 'Deposit details', 'woocommerce-payments' ),
+					'title'  => __( 'Payout details', 'woocommerce-payments' ),
 					'parent' => 'wc-payments-transactions', // Not (top level) deposits, as workaround for showing up as submenu page.
-					'path'   => '/payments/deposits/details',
+					'path'   => '/payments/payouts/details',
 				]
 			);
 			wc_admin_register_page(
@@ -479,7 +544,7 @@ class WC_Payments_Admin {
 			plugins_url( 'assets/css/admin.css', WCPAY_PLUGIN_FILE ),
 			[],
 			WC_Payments::get_file_version( 'assets/css/admin.css' ),
-			'all',
+			'all'
 		);
 
 		$this->add_menu_notification_badge();
@@ -598,6 +663,15 @@ class WC_Payments_Admin {
 			wp_enqueue_style( 'WCPAY_ADMIN_SETTINGS' );
 		}
 
+		// Enqueue the onboarding scripts if the user is on the onboarding page.
+		if ( WC_Payments_Utils::is_onboarding_page() ) {
+			wp_localize_script(
+				'WCPAY_ONBOARDING_SETTINGS',
+				'wcpayOnboardingSettings',
+				[]
+			);
+		}
+
 		// TODO: Try to enqueue the JS and CSS bundles lazily (will require changes on WC-Admin).
 		$current_screen = get_current_screen() ? get_current_screen()->base : null;
 		if ( wc_admin_is_registered_page() || 'widgets' === $current_screen ) {
@@ -682,7 +756,7 @@ class WC_Payments_Admin {
 		if ( in_array( $screen->id, [ 'shop_order', 'woocommerce_page_wc-orders' ], true ) ) {
 			$order = wc_get_order();
 
-			if ( $order && WC_Payment_Gateway_WCPay::GATEWAY_ID === $order->get_payment_method() ) {
+			if ( $order && strpos( $order->get_payment_method(), WC_Payment_Gateway_WCPay::GATEWAY_ID ) !== false ) {
 				$refund_amount = $order->get_remaining_refund_amount();
 
 				// Check if the order's test mode meta matches the site's current test mode state.
@@ -805,14 +879,21 @@ class WC_Payments_Admin {
 		try {
 			$test_mode = WC_Payments::mode()->is_test();
 		} catch ( Exception $e ) {
-			Logger::log( sprintf( 'WooPayments JS settings: Could not determine if WCPay should be in test mode! Message: %s', $e->getMessage() ), 'warning' );
+			Logger::log( sprintf( 'WooPayments JS settings: Could not determine if the gateway should process payments in test mode! Message: %s', $e->getMessage() ), 'warning' );
+		}
+
+		$test_mode_onboarding = false;
+		try {
+			$test_mode_onboarding = WC_Payments::mode()->is_test_mode_onboarding();
+		} catch ( Exception $e ) {
+			Logger::log( sprintf( 'WooPayments JS settings: Could not determine if we should onboard accounts in test mode! Message: %s', $e->getMessage() ), 'warning' );
 		}
 
 		$dev_mode = false;
 		try {
 			$dev_mode = WC_Payments::mode()->is_dev();
 		} catch ( Exception $e ) {
-			Logger::log( sprintf( 'WooPayments JS settings: Could not determine if WCPay should be in sandbox mode! Message: %s', $e->getMessage() ), 'warning' );
+			Logger::log( sprintf( 'WooPayments JS settings: Could not determine if the gateway should be in dev mode! Message: %s', $e->getMessage() ), 'warning' );
 		}
 
 		$connect_url       = WC_Payments_Account::get_connect_url();
@@ -837,11 +918,12 @@ class WC_Payments_Admin {
 			],
 			'connectIncentive'                   => $connect_incentive,
 			'devMode'                            => $dev_mode,
+			'testModeOnboarding'                 => $test_mode_onboarding,
 			'testMode'                           => $test_mode,
-			'onboardingTestMode'                 => WC_Payments_Onboarding_Service::is_test_mode_enabled(),
 			// Set this flag for use in the front-end to alter messages and notices if on-boarding has been disabled.
 			'onBoardingDisabled'                 => WC_Payments_Account::is_on_boarding_disabled(),
 			'onboardingFieldsData'               => $this->onboarding_service->get_fields_data( get_user_locale() ),
+			'onboardingEmbeddedKycInProgress'    => $this->onboarding_service->is_embedded_kyc_in_progress(),
 			'errorMessage'                       => $error_message,
 			'featureFlags'                       => $this->get_frontend_feature_flags(),
 			'isSubscriptionsActive'              => class_exists( 'WC_Subscriptions' ) && version_compare( WC_Subscriptions::$version, '2.2.0', '>=' ),
@@ -876,6 +958,7 @@ class WC_Payments_Admin {
 			'fraudProtection'                    => [
 				'isWelcomeTourDismissed' => WC_Payments_Features::is_fraud_protection_welcome_tour_dismissed(),
 			],
+			'isPayoutsRenameNoticeDismissed'     => WC_Payments_Features::is_payouts_rename_notice_dismissed(),
 			'enabledPaymentMethods'              => $this->get_enabled_payment_method_ids(),
 			'progressiveOnboarding'              => $this->account->get_progressive_onboarding_details(),
 			'accountDefaultCurrency'             => $this->account->get_account_default_currency(),
@@ -1086,44 +1169,56 @@ class WC_Payments_Admin {
 	}
 
 	/**
-	 * If the user is attempting to view a WCPay admin page without a connected Stripe account,
-	 * redirect them to the connect account page.
+	 * Redirects WCPay admin pages to the Connect page for stores that
+	 * don't have a working Jetpack connection or a valid connected Stripe account.
+	 *
+	 * Please note that the overview page is handled separately in the
+	 * `WC_Payments_Account::maybe_redirect_from_overview_page` method, before this method is called (priority 15 vs 16).
+	 *
+	 * IMPORTANT: The logic should be kept in sync with the one in maybe_redirect_from_connect_page to avoid loops.
+	 *
+	 * @see WC_Payments_Account::maybe_redirect_from_overview_page() for overview page handling.
+	 * @see WC_Payments_Account::maybe_handle_onboarding() for connect links handling.
+	 *
+	 * @return bool True if a redirection happened, false otherwise.
 	 */
-	public function maybe_redirect_from_payments_admin_child_pages() {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			return;
-		}
-		if ( wp_doing_ajax() ) {
-			return;
+	public function maybe_redirect_from_payments_admin_child_pages(): bool {
+		if ( wp_doing_ajax() || ! current_user_can( 'manage_woocommerce' ) ) {
+			return false;
 		}
 
 		$url_params = wp_unslash( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification
-
 		if ( empty( $url_params['page'] ) || 'wc-admin' !== $url_params['page'] ) {
-			return;
+			return false;
 		}
 
 		$current_path = ! empty( $url_params['path'] ) ? $url_params['path'] : '';
-
 		if ( empty( $current_path ) ) {
-			return;
+			return false;
 		}
 
+		// If the current path doesn't match any of the paths we're interested in, do not redirect.
 		$page_paths = [];
-
 		foreach ( $this->admin_child_pages as $payments_child_page ) {
 			$page_paths[] = preg_quote( $payments_child_page['path'], '/' );
 		}
-
 		if ( ! preg_match( '/^(' . implode( '|', $page_paths ) . ')/', $current_path ) ) {
-			return;
+			return false;
 		}
 
-		if ( $this->account->is_stripe_connected( true, true ) ) {
-			return;
+		// If everything is NOT in good working condition, redirect to Payments Connect page.
+		if ( ! $this->account->has_working_jetpack_connection() || ! $this->account->is_stripe_account_valid() ) {
+			$this->account->redirect_to_onboarding_welcome_page(
+				sprintf(
+				/* translators: 1: WooPayments. */
+					__( 'Please <b>complete your %1$s setup</b> to continue using it.', 'woocommerce-payments' ),
+					'WooPayments'
+				)
+			);
+			return true;
 		}
 
-		$this->account->redirect_to_onboarding_welcome_page();
+		return false;
 	}
 
 	/**

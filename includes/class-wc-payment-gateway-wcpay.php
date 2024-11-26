@@ -401,7 +401,7 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 				'title'       => __( 'Button type', 'woocommerce-payments' ),
 				'type'        => 'select',
 				'description' => __( 'Select the button type you would like to show.', 'woocommerce-payments' ),
-				'default'     => 'buy',
+				'default'     => 'default',
 				'desc_tip'    => true,
 				'options'     => [
 					'default' => __( 'Only icon', 'woocommerce-payments' ),
@@ -767,12 +767,12 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	 * @return string Connection URL.
 	 */
 	public function get_connection_url() {
-		$account_data = $this->account->get_cached_account_data();
-
-		// The onboarding is finished if account_id is set. `Set up` will be shown instead of `Connect`.
-		if ( isset( $account_data['account_id'] ) ) {
+		// If we have an account, `Set up` will be shown instead of `Connect`.
+		if ( $this->is_connected() ) {
 			return '';
 		}
+
+		// Note: Payments Task is not a very accurate from value, but it is the best we can do, for now.
 		return html_entity_decode( WC_Payments_Account::get_connect_url( WC_Payments_Onboarding_Service::FROM_WCADMIN_PAYMENTS_TASK ) );
 	}
 
@@ -825,6 +825,9 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	 * @return bool Whether the gateway is enabled and ready to accept payments.
 	 */
 	public function is_available() {
+		if ( ! WC_Payments::get_gateway()->is_enabled() ) {
+			return false;
+		}
 		$processing_payment_method = $this->payment_methods[ $this->payment_method->get_id() ];
 		if ( ! $processing_payment_method->is_enabled_at_checkout( $this->get_account_country() ) ) {
 			return false;
@@ -865,6 +868,15 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	 */
 	public function is_saved_cards_enabled() {
 		return 'yes' === $this->get_option( 'saved_cards' );
+	}
+
+	/**
+	 * Checks if the setting to show the payment request buttons is enabled.
+	 *
+	 * @return bool Whether the setting to show the payment request buttons is enabled or not.
+	 */
+	public function is_payment_request_enabled() {
+		return 'yes' === $this->get_option( 'payment_request' );
 	}
 
 	/**
@@ -1838,8 +1850,11 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 			$payment_method_details = $charge ? $charge->get_payment_method_details() : [];
 			$payment_method_type    = $payment_method_details ? $payment_method_details['type'] : null;
 
-			if ( $order->get_meta( 'is_woopay' ) && 'card' === $payment_method_type && isset( $payment_method_details['card']['last4'] ) ) {
+			if ( 'card' === $payment_method_type && isset( $payment_method_details['card']['last4'] ) ) {
 				$order->add_meta_data( 'last4', $payment_method_details['card']['last4'], true );
+				if ( isset( $payment_method_details['card']['brand'] ) ) {
+					$order->add_meta_data( '_card_brand', $payment_method_details['card']['brand'], true );
+				}
 				$order->save_meta_data();
 			}
 		} else {
@@ -3195,12 +3210,9 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	}
 
 	/**
-	 * The get_icon() method from the WC_Payment_Gateway class wraps the icon URL into a prepared HTML element, but there are situations when this
-	 * element needs to be rendered differently on the UI (e.g. additional styles or `display` property).
+	 * The URL for the current payment method's icon.
 	 *
-	 * This is why we need a usual getter like this to provide a raw icon URL to the UI, which will render it according to particular requirements.
-	 *
-	 * @return string Returns the payment method icon URL.
+	 * @return string The payment method icon URL.
 	 */
 	public function get_icon_url() {
 		return $this->payment_method->get_icon();
@@ -3566,7 +3578,9 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 				wc_reduce_stock_levels( $order_id );
 				WC()->cart->empty_cart();
 
-				if ( ! empty( $payment_method_id ) ) {
+				$is_subscription            = function_exists( 'wcs_order_contains_subscription' ) && wcs_order_contains_subscription( $order );
+				$should_save_payment_method = $is_subscription || ( isset( $_POST['should_save_payment_method'] ) && 'true' === $_POST['should_save_payment_method'] );
+				if ( $should_save_payment_method && ! empty( $payment_method_id ) ) {
 					try {
 						$token = $this->token_service->add_payment_method_to_user( $payment_method_id, wp_get_current_user() );
 						$this->add_token_to_order( $order, $token );
@@ -4282,20 +4296,22 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	 * @return array WooCommerce checkout fields.
 	 */
 	public function checkout_update_email_field_priority( $fields ) {
-		$is_link_enabled = in_array(
-			Link_Payment_Method::PAYMENT_METHOD_STRIPE_ID,
-			\WC_Payments::get_gateway()->get_payment_method_ids_enabled_at_checkout_filtered_by_fees( null, true ),
-			true
-		);
+		if ( is_checkout() || has_block( 'woocommerce/checkout' ) ) {
+			$is_link_enabled = in_array(
+				Link_Payment_Method::PAYMENT_METHOD_STRIPE_ID,
+				\WC_Payments::get_gateway()->get_payment_method_ids_enabled_at_checkout_filtered_by_fees( null, true ),
+				true
+			);
 
-		if ( $is_link_enabled && isset( $fields['billing_email'] ) ) {
-			// Update the field priority.
-			$fields['billing_email']['priority'] = 1;
+			if ( $is_link_enabled && isset( $fields['billing_email'] ) ) {
+				// Update the field priority.
+				$fields['billing_email']['priority'] = 1;
 
-			// Add extra `wcpay-checkout-email-field` class.
-			$fields['billing_email']['class'][] = 'wcpay-checkout-email-field';
+				// Add extra `wcpay-checkout-email-field` class.
+				$fields['billing_email']['class'][] = 'wcpay-checkout-email-field';
 
-			add_filter( 'woocommerce_form_field_email', [ $this, 'append_stripelink_button' ], 10, 4 );
+				add_filter( 'woocommerce_form_field_email', [ $this, 'append_stripelink_button' ], 10, 4 );
+			}
 		}
 
 		return $fields;
@@ -4483,34 +4499,6 @@ class WC_Payment_Gateway_WCPay extends WC_Payment_Gateway_CC {
 	public function find_duplicates() {
 		return $this->duplicate_payment_methods_detection_service->find_duplicates();
 	}
-
-	// Start: Deprecated functions.
-
-	/**
-	 * Check the defined constant to determine the current plugin mode.
-	 *
-	 * @deprecated 5.6.0
-	 *
-	 * @return bool
-	 */
-	public function is_in_dev_mode() {
-		wc_deprecated_function( __FUNCTION__, '5.6.0', 'WC_Payments::mode()->is_dev()' );
-		return WC_Payments::mode()->is_dev();
-	}
-
-	/**
-	 * Returns whether test_mode or dev_mode is active for the gateway
-	 *
-	 * @deprecated 5.6.0
-	 *
-	 * @return boolean Test mode enabled if true, disabled if false
-	 */
-	public function is_in_test_mode() {
-		wc_deprecated_function( __FUNCTION__, '5.6.0', 'WC_Payments::mode()->is_test()' );
-		return WC_Payments::mode()->is_test();
-	}
-
-	// End: Deprecated functions.
 
 	/**
 	 * Determine whether redirection is needed for the non-card UPE payment method.

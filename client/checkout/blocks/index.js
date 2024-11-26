@@ -18,12 +18,14 @@ import { SavedTokenHandler } from './saved-token-handler';
 import PaymentMethodLabel from './payment-method-label';
 import request from '../utils/request';
 import enqueueFraudScripts from 'fraud-scripts';
-import paymentRequestPaymentMethod from '../../payment-request/blocks';
 import {
 	expressCheckoutElementApplePay,
 	expressCheckoutElementGooglePay,
 } from '../../express-checkout/blocks';
-import tokenizedCartPaymentRequestPaymentMethod from '../../tokenized-payment-request/blocks';
+import {
+	tokenizedExpressCheckoutElementApplePay,
+	tokenizedExpressCheckoutElementGooglePay,
+} from 'wcpay/tokenized-express-checkout/blocks';
 
 import {
 	PAYMENT_METHOD_NAME_CARD,
@@ -77,8 +79,6 @@ const api = new WCPayAPI(
 	request
 );
 
-const stripeAppearance = getUPEConfig( 'wcBlocksUPEAppearance' );
-
 Object.entries( enabledPaymentMethodsConfig )
 	.filter( ( [ upeName ] ) => upeName !== 'link' )
 	.forEach( ( [ upeName, upeConfig ] ) => {
@@ -112,9 +112,11 @@ Object.entries( enabledPaymentMethodsConfig )
 			label: (
 				<PaymentMethodLabel
 					api={ api }
-					upeConfig={ upeConfig }
+					title={ upeConfig.title }
+					countries={ upeConfig.countries }
+					iconLight={ upeConfig.icon }
+					iconDark={ upeConfig.darkIcon }
 					upeName={ upeName }
-					stripeAppearance={ stripeAppearance }
 					upeAppearanceTheme={ upeAppearanceTheme }
 				/>
 			),
@@ -160,15 +162,18 @@ if ( getUPEConfig( 'isWooPayEnabled' ) ) {
 	}
 }
 
-if ( getUPEConfig( 'isTokenizedCartPrbEnabled' ) ) {
-	registerExpressPaymentMethod(
-		tokenizedCartPaymentRequestPaymentMethod( api )
-	);
-} else if ( getUPEConfig( 'isExpressCheckoutElementEnabled' ) ) {
-	registerExpressPaymentMethod( expressCheckoutElementApplePay( api ) );
-	registerExpressPaymentMethod( expressCheckoutElementGooglePay( api ) );
-} else {
-	registerExpressPaymentMethod( paymentRequestPaymentMethod( api ) );
+if ( getUPEConfig( 'isPaymentRequestEnabled' ) ) {
+	if ( getUPEConfig( 'isTokenizedCartEceEnabled' ) ) {
+		registerExpressPaymentMethod(
+			tokenizedExpressCheckoutElementApplePay( api )
+		);
+		registerExpressPaymentMethod(
+			tokenizedExpressCheckoutElementGooglePay( api )
+		);
+	} else {
+		registerExpressPaymentMethod( expressCheckoutElementApplePay( api ) );
+		registerExpressPaymentMethod( expressCheckoutElementGooglePay( api ) );
+	}
 }
 window.addEventListener( 'load', () => {
 	enqueueFraudScripts( getUPEConfig( 'fraudServices' ) );

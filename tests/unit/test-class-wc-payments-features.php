@@ -29,7 +29,6 @@ class WC_Payments_Features_Test extends WCPAY_UnitTestCase {
 		'_wcpay_feature_customer_multi_currency' => 'multiCurrency',
 		'_wcpay_feature_documents'               => 'documents',
 		'_wcpay_feature_auth_and_capture'        => 'isAuthAndCaptureEnabled',
-		'_wcpay_feature_stripe_ece'              => 'isStripeEceEnabled',
 	];
 
 	public function set_up() {
@@ -66,6 +65,7 @@ class WC_Payments_Features_Test extends WCPAY_UnitTestCase {
 
 		// Restore the cache service in the main class.
 		WC_Payments::set_database_cache( $this->_cache );
+
 		parent::tear_down();
 	}
 

@@ -37,7 +37,10 @@ import { HorizontalList, HorizontalListItem } from 'components/horizontal-list';
 import Loadable, { LoadableBlock } from 'components/loadable';
 import riskMappings from 'components/risk-level/strings';
 import OrderLink from 'components/order-link';
-import { formatCurrency, formatExplicitCurrency } from 'utils/currency';
+import {
+	formatCurrency,
+	formatExplicitCurrency,
+} from 'multi-currency/interface/functions';
 import CustomerLink from 'components/customer-link';
 import { ClickTooltip } from 'components/tooltip';
 import DisputeStatusChip from 'components/dispute-status-chip';
@@ -629,6 +632,9 @@ const PaymentDetailsSummary: React.FC< PaymentDetailsSummaryProps > = ( {
 							customer={ charge.billing_details }
 							chargeCreated={ charge.created }
 							orderUrl={ charge.order?.url }
+							paymentMethod={
+								charge.payment_method_details?.type
+							}
 						/>
 					) : (
 						<DisputeResolutionFooter dispute={ charge.dispute } />

@@ -2,9 +2,9 @@
 Contributors: woocommerce, automattic
 Tags: woocommerce payments, apple pay, credit card, google pay, payment, payment gateway
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 6.7
 Requires PHP: 7.3
-Stable tag: 8.1.0
+Stable tag: 8.5.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,7 @@ Features previously only available on your payment provider’s website are now 
 
 - View the details of [payments, refunds, and other transactions](https://woocommerce.com/document/woopayments/managing-money/).
 - View and respond to [disputes and chargebacks](https://woocommerce.com/document/woopayments/fraud-and-disputes/managing-disputes/).
-- [Track deposits](https://woocommerce.com/document/woopayments/deposits/) into your bank account or debit card.
+- [Track payouts](https://woocommerce.com/document/woopayments/payouts/) into your bank account or debit card.
 
 **Pay as you go**
 
@@ -89,10 +89,150 @@ Please note that our support for the checkout block is still experimental and th
 
 1. View Transactions
 2. View Transaction Details
-3. Track Deposits
+3. Track Payouts
 4. Manage Disputes
 
 == Changelog ==
+
+= 8.5.1 - 2024-11-25 =
+* Fix - fix: remove "test mode" badge from shortcode checkout.
+
+
+= 8.5.0 - 2024-11-13 =
+* Add - Add country-specific test card numbers for credit card testing
+* Add - Add risk level information to the fraud and risk box on the order details page.
+* Add - Add support for allowedShippingCountries in Express Checkout Element.
+* Fix - Avoid PHP warnings for requests with an empty path.
+* Fix - BNPL methods now work properly in Pay for Order when they are available. Default values are also provided when available.
+* Fix - fix: payment method icon alt text
+* Fix - Fix compatibility issues with CustomSelectControl component styles for WordPress 6.7
+* Fix - Fix duplicate saving of 3DS card entry after checkout
+* Fix - Fixed single product page view tracks when BNPL and PRB payment methods are inactive.
+* Fix - Fix PMME appearance in checkout
+* Fix - Fix settings display on the advanced fraud protection page.
+* Fix - Fix WooPay button preview in plugin settings.
+* Fix - Fix WooPay duplicated Save my info section.
+* Fix - Include missing scripts that handle refunds for non credit card payments in the order details page.
+* Fix - Introducing consistency in colors for deposits across pages
+* Fix - Prevent dead space on product pages when no BNPL offers are available.
+* Fix - Provide backwards-compatible method for retrieving the multi-currency instance.
+* Fix - Register Expresss Checkout block only when enabled in the settings
+* Fix - Remove unnecessary '.woocommerce-table' css overrides to fix WC Analytics styling and a11y issues
+* Fix - Use 'Withdrawal' and 'Deducted' labels when referring to withdrawal deposits, to more accurately communicate the type of transaction that has occurred
+* Update - Add in-memory cache fallback for our database-cached objects in case of database write failures.
+* Update - Decoupled Multi-currency module from gateway dependencies.
+* Update - Improvements to events during onboarding flow.
+* Update - Refactor loadStripe for Express Checkouts.
+* Update - Rename 'deposit' to 'payout' across various places in the WooPayments admin UI, docs and doc URLs.
+* Update - update: payment method "test mode" label at checkout to be displayed only when payment method is selected
+* Update - update: show LPM payment method icon on order success page
+* Update - Use preview versions of the actual ECE buttons in the Block editor.
+* Update - When tracking is enabled, send a tracks event when the merchant is redirected to a Stripe Capital offer.
+* Dev - Add Jest tests for the disputed order notices
+* Dev - Add unit tests for the Capital Loans page component.
+* Dev - Bump WC tested up to version to 9.4.0
+
+= 8.4.0 - 2024-10-23 =
+* Add - Add test mode badge to classic checkout and add payment method.
+* Add - Using Floating Labels with Stripe Appearance API for Blocks Checkout
+* Fix - Converting text color rgba to hex to prevent Stripe warning
+* Fix - Fix the color contrast of links within tooltips to improve readability.
+* Fix - Omit the test mode badge in the change payment method form for subscriptions.
+* Fix - Pass container styling data to WooPay
+* Fix - Prevented detaching payment methods from live Stripe accounts when working in non-production environments.
+* Fix - Rendering Test Model badge only for Credit Card
+* Fix - Stop enqueuing woopay-express-button.css to prevent 404 errors
+* Fix - The amounts used by the PMMEs will match the displayed price of the product regardless of the tax settings.
+* Fix - WooPay user registration via classic checkout
+* Update - Add support for the style controls for the WooPay button
+* Update - chore: remove deprecated is_in_dev_mode() and is_in_test_mode() methods
+* Update - Payments task onboarding flows skip the Connect page.
+* Dev - Bump WC tested up to version to 9.3.3.
+* Dev - fix: prevent multiple instances of WC_Payments_Apple_Pay_Registration
+* Dev - Fixed wrong utils path that would prevent checkout with WooPay OTP
+* Dev - Migrate WizardTaskItem and CollapsibleBody components to TypeScript, making the className prop optional.
+* Dev - Use official `phpmyadmin` Docker Hub container image
+
+= 8.3.1 - 2024-10-16 =
+* Fix - Auto-enabled WooPay for new accounts.
+* Fix - Load Stripe with merchant account's key when checking payment method availability.
+
+
+= 8.3.0 - 2024-10-03 =
+* Add - Add compatibility with the buttonAttributes API from Woo Blocks
+* Add - Add rate limiter to compatibility data updates
+* Add - Add UTC to the date time column header of transactions list page.
+* Add - Disable save changes button until a setting has changed.
+* Add - Enables Klarna with amount limitations for FR country code.
+* Add - Provide locale to Express Checkout Element.
+* Add - Redesigned the Payment Method labels for the Blocks Checkout
+* Add - Show a notice in Payments > Settings > Deposits if there is an error with the bank account.
+* Add - Updates to the Embedded KYC to ensure compatibility with Progressive Onboarding
+* Fix - Allow the network saved card payment method setting to be overridden by the `wcpay_force_network_saved_cards` filter
+* Fix - Create div container element with JS dynamically.
+* Fix - Do not display BNPL methods and PMME when WooPayments is disabled
+* Fix - Fixed CC form input fields appearance when using RGBA
+* Fix - Fixed invalid appearance warnings
+* Fix - Fix event prefix duplication in Tracks events
+* Fix - Handle loadError in ECE for Block Context Initialization.
+* Fix - Prevent failures and notices related to trying to schedule AS jobs before init.
+* Fix - Prevent multi-currency conversion during a REST API request.
+* Fix - Remove text color from WooPay component.
+* Fix - Rendering Test Model badge only for Credit Card
+* Fix - Sync phone changes with WooPay phone field.
+* Fix - Update payment methods when manual capture is enabled.
+* Update - Default express checkout button label to "Only icon".
+* Update - Remove feature flag to make embedded KYC enabled by default
+* Update - Some minor styling updates on the Onboarding form.
+* Update - Update express payment methods with a title, description and gatewayId
+* Dev - fix: prevent multiple instances of WC_Payments_Apple_Pay_Registration
+* Dev - Fix gutenberg blueberry focus color
+* Dev - Fix progressive onboarding e2e test
+* Dev - Some refactors to embedded KYC logic.
+
+= 8.2.2 - 2024-09-24 =
+* Fix - Fix WooPay pre-checking place order bug when buying a subscription.
+
+
+= 8.2.1 - 2024-09-13 =
+* Fix - Create div container element with JS dynamically.
+
+
+= 8.2.0 - 2024-09-11 =
+* Add - add: test instructions icon animation
+* Add - Added Embdedded KYC, currently behind feature flag.
+* Fix - Avoid unnecessary account data cache refresh on WooPayments pages refresh.
+* Fix - Check payment method is available before rendering it.
+* Fix - Disables custom checkout field detection due to compatibility issues and false positives.
+* Fix - Disables testing instructions clipboard button on HTTP sites when navigator.clipboard is undefined.
+* Fix - fix: missing translations on testing instructions.
+* Fix - fix: platform_global_theme_support_enabled undefined index
+* Fix - fix: testing instructions dark theme support
+* Fix - Fix caching with tracking cookie.
+* Fix - Fixed an issue where the Connect page would scroll to the top upon clicking the Enable Sandbox Mode button.
+* Fix - Fixed default borderRadius value for the express checkout buttons
+* Fix - Fix shipping rates retrieval method for shortcode cart/checkout.
+* Fix - Fix support for merchant site styling when initializing WooPay via classic checkout
+* Fix - Fix WooPay direct checkout.
+* Fix - Handle loadError in ECE for Block Context Initialization.
+* Fix - Move woopay theme support checkbox to the appearance section.
+* Fix - Pass appearance data when initiating WooPay via the email input flow
+* Fix - Prevent preload of BNPL messaging if minimum order amount isn't hit.
+* Fix - Redirect user to WooPay OTP when the email is saved.
+* Fix - Remove obsolete ApplePay warning on wp-admin for test sites.
+* Fix - Update cache after persisting the User session via WooPay
+* Fix - Updates test mode instructions copy for cards at checkout.
+* Update - update: payment method fees in one line
+* Update - Update Jetpack packages to the latest versions
+* Dev - Fix failing e2e tests for saved cards.
+* Dev - Fix Klarna product page message E2E test after the contents inside the iframe were updated.
+* Dev - Migrate Klarna E2E tests to playwright. Reduce noise in E2E tests console output.
+* Dev - Migrate multi-currency e2e tests to Playwright.
+
+= 8.1.1 - 2024-08-29 =
+* Fix - Ensure 55px is the maximum height for Apple Pay button.
+* Fix - Fixed sandbox mode accounts being able to disable test mode for the payment gateway settings.
+
 
 = 8.1.0 - 2024-08-21 =
 * Add - Add button rules to appearance
@@ -114,7 +254,6 @@ Please note that our support for the checkout block is still experimental and th
 * Fix - Fix uncaught error on the block based Cart page when WooPayments is disabled.
 * Fix - Fix WooPay checkboxes while signed in.
 * Fix - If a payment method fails to be created in the frontend during checkout, forward the errors to the server so it can be recorded in an order.
-* Fix - Migrate to Docker Compose V2 for test runner environment setup scripts
 * Fix - Reverts changes related to Direct Checkout that broke the PayPal extension.
 * Fix - Translate hardcoded strings on the Connect page
 * Update - refactor: separate BNPL methods from settings list
@@ -126,6 +265,7 @@ Please note that our support for the checkout block is still experimental and th
 * Dev - Match the Node version in nvm with the minimum version in package.json.
 * Dev - Remove unnecessary console.warn statements added in #9121.
 * Dev - Update bundle size checker workflow to support node v20
+* Dev - Migrate to Docker Compose V2 for test runner environment setup scripts
 
 = 8.0.2 - 2024-08-07 =
 * Fix - Add opt-in checks to prevent blocking customers using other payment methods.

@@ -43,6 +43,26 @@ export const isInTestMode = ( fallback = false ) => {
 };
 
 /**
+ * Returns true if WooPayments is in test/sandbox mode onboarding, false otherwise.
+ *
+ * @param {boolean} fallback Fallback in case test/sandbox mode onboarding value can't be found
+ * 							 (for example if the wcpaySettings are undefined).
+ *
+ * @return {boolean} True if in test/sandbox mode onboarding, false otherwise.
+ * 					 Fallback value if test/sandbox mode onboarding value can't be found.
+ */
+export const isInTestModeOnboarding = ( fallback = false ) => {
+	if (
+		! isObject( wcpaySettings ) ||
+		! wcpaySettings.hasOwnProperty( 'testModeOnboarding' )
+	) {
+		return fallback;
+	}
+
+	return !! wcpaySettings.testModeOnboarding || fallback;
+};
+
+/**
  * Returns true if WooPayments is in dev/sandbox mode, false otherwise.
  *
  * @param {boolean} fallback Fallback in case dev/sandbox mode value can't be found (for example if the wcpaySettings are undefined).
@@ -78,6 +98,40 @@ export const getDocumentUrl = ( documentId ) => {
 			_wpnonce: wpApiSettings.nonce,
 		}
 	);
+};
+
+export const getConnectUrl = ( urlParams, from ) => {
+	// Ensure urlParams is an object.
+	const queryParams = typeof urlParams === 'object' ? urlParams : {};
+
+	const baseParams = {
+		page: 'wc-admin',
+		path: '/payments/connect',
+		source: queryParams.source?.replace( /[^\w-]+/g, '' ) || 'unknown',
+		from: from,
+	};
+
+	// Merge queryParams and baseParams into baseParams, ensuring baseParams takes precedence.
+	const params = { ...queryParams, ...baseParams };
+
+	return getAdminUrl( params );
+};
+
+export const getOverviewUrl = ( urlParams, from ) => {
+	// Ensure urlParams is an object.
+	const queryParams = typeof urlParams === 'object' ? urlParams : {};
+
+	const baseParams = {
+		page: 'wc-admin',
+		path: '/payments/overview',
+		source: queryParams.source?.replace( /[^\w-]+/g, '' ) || 'unknown',
+		from: from,
+	};
+
+	// Merge queryParams and baseParams into baseParams, ensuring baseParams takes precedence.
+	const params = { ...queryParams, ...baseParams };
+
+	return getAdminUrl( params );
 };
 
 /**
@@ -255,4 +309,16 @@ export const getExportLanguageOptions = () => {
 			value: wcpaySettings.locale.code,
 		},
 	];
+};
+
+/**
+ * Given an object, remove all properties with null or undefined values.
+ *
+ * @param {Object} obj The object to remove empty properties from.
+ * @return {Object|any} A new object with all properties with null or undefined values removed.
+ */
+export const objectRemoveEmptyProperties = ( obj ) => {
+	return Object.keys( obj )
+		.filter( ( k ) => obj[ k ] !== null && obj[ k ] !== undefined )
+		.reduce( ( a, k ) => ( { ...a, [ k ]: obj[ k ] } ), {} );
 };

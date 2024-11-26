@@ -52,6 +52,11 @@ const adjustButtonHeights = ( buttonOptions, expressPaymentMethod ) => {
 		buttonOptions.buttonHeight = buttonOptions.buttonHeight - 2;
 	}
 
+	// Clamp the button height to the allowed range 40px to 55px.
+	buttonOptions.buttonHeight = Math.max(
+		40,
+		Math.min( buttonOptions.buttonHeight, 55 )
+	);
 	return buttonOptions;
 };
 
@@ -70,6 +75,8 @@ const ExpressCheckoutComponent = ( {
 	onClick,
 	onClose,
 	expressPaymentMethod = '',
+	buttonAttributes,
+	isPreview = false,
 } ) => {
 	const {
 		buttonOptions,
@@ -86,7 +93,7 @@ const ExpressCheckoutComponent = ( {
 		onClose,
 		setExpressPaymentError,
 	} );
-
+	const onClickHandler = ! isPreview ? onButtonClick : () => {};
 	const onShippingAddressChange = ( event ) =>
 		shippingAddressChangeHandler( api, event, elements );
 
@@ -111,13 +118,30 @@ const ExpressCheckoutComponent = ( {
 		onReady( event );
 	};
 
+	// The Cart & Checkout blocks provide unified styles across all buttons,
+	// which should override the extension specific settings.
+	const withBlockOverride = () => {
+		const override = {};
+		if ( typeof buttonAttributes !== 'undefined' ) {
+			override.buttonHeight = Number( buttonAttributes.height );
+		}
+		return {
+			...buttonOptions,
+			...override,
+		};
+	};
+
 	return (
 		<ExpressCheckoutElement
 			options={ {
-				...adjustButtonHeights( buttonOptions, expressPaymentMethod ),
+				...withBlockOverride(),
+				...adjustButtonHeights(
+					withBlockOverride(),
+					expressPaymentMethod
+				),
 				...getPaymentMethodsOverride( expressPaymentMethod ),
 			} }
-			onClick={ onButtonClick }
+			onClick={ onClickHandler }
 			onConfirm={ onConfirm }
 			onReady={ onElementsReady }
 			onCancel={ onCancel }
